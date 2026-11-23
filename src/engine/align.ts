@@ -1,5 +1,5 @@
 import { diffArrays } from 'diff';
-import { bagSimilarity, wordBag, type WordBag } from './similarity';
+import { bagSimilarity, wordBag } from './similarity';
 
 export type AlignOp<T> = { op: 'equal' | 'pair'; a: T; b: T } | { op: 'delete'; a: T } | { op: 'insert'; b: T };
 
@@ -8,6 +8,51 @@ export interface AlignOptions<T> {
   words: (x: T) => string[];
   compatible: (x: T, y: T) => boolean;
   threshold: number;
+}
+
+type Run = { kind: 'equal' | 'removed' | 'added'; count: number };
+
+/**
+ * LCS of exact keys. Items whose key never occurs on the other side cannot match,
+ * so they are dropped before running Myers diff (keeps D small on drastic rewrites).
+ */
+function anchors(ka: string[], kb: string[]): Run[] {
+  const inB = new Set(kb);
+  const inA = new Set(ka);
+  const fa = ka.map((k, x) => ({ k, x })).filter(e => inB.has(e.k));
+  const fb = kb.map((k, y) => ({ k, y })).filter(e => inA.has(e.k));
+  const runs: Run[] = [];
+  const push = (kind: Run['kind'], count: number) => {
+    if (count <= 0) return;
+    const last = runs[runs.length - 1];
+    if (last && last.kind === kind) last.count += count;
+    else runs.push({ kind, count });
+  };
+  let x = 0;
+  let y = 0;
+  let p = 0;
+  let q = 0;
+  for (const ch of diffArrays(fa.map(e => e.k), fb.map(e => e.k))) {
+    const n = ch.count ?? ch.value.length;
+    if (ch.removed) p += n;
+    else if (ch.added) q += n;
+    else {
+      for (let k = 0; k < n; k++) {
+        const ax = fa[p + k].x;
+        const by = fb[q + k].y;
+        push('removed', ax - x);
+        push('added', by - y);
+        push('equal', 1);
+        x = ax + 1;
+        y = by + 1;
+      }
+      p += n;
+      q += n;
+    }
+  }
+  push('removed', ka.length - x);
+  push('added', kb.length - y);
+  return runs;
 }
 
 const DP_LIMIT = 250_000;
@@ -31,19 +76,18 @@ export function align<T>(a: T[], b: T[], opts: AlignOptions<T>): AlignOp<T>[] {
     gapA = [];
     gapB = [];
   };
-  for (const ch of diffArrays(ka, kb)) {
-    const n = ch.count ?? ch.value.length;
-    if (ch.removed) {
-      gapA.push(...a.slice(i, i + n));
-      i += n;
-    } else if (ch.added) {
-      gapB.push(...b.slice(j, j + n));
-      j += n;
+  for (const ch of anchors(ka, kb)) {
+    if (ch.kind === 'removed') {
+      gapA.push(...a.slice(i, i + ch.count));
+      i += ch.count;
+    } else if (ch.kind === 'added') {
+      gapB.push(...b.slice(j, j + ch.count));
+      j += ch.count;
     } else {
       flush();
-      for (let k = 0; k < n; k++) out.push({ op: 'equal', a: a[i + k], b: b[j + k] });
-      i += n;
-      j += n;
+      for (let k = 0; k < ch.count; k++) out.push({ op: 'equal', a: a[i + k], b: b[j + k] });
+      i += ch.count;
+      j += ch.count;
     }
   }
   flush();

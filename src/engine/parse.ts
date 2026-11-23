@@ -60,7 +60,7 @@ function emit(ctx: Ctx, cs: Container[], item: ItemInfo | null, kind: BlockKind,
     checked: item?.checked ?? null,
     marker: item?.marker ?? '',
     source,
-    key: `${kind}|${containerSig(cs)}|${content}`,
+    key: `${kind}|${containerSig(cs)}|${item?.checked ?? ''}|${content}`,
     ...extra,
   });
 }

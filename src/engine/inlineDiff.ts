@@ -84,14 +84,17 @@ function pushRaw(out: RawSeg[], op: RawSeg['op'], text: string): void {
   else out.push({ op, text });
 }
 
-/** Source-text token diff; whitespace runs (incl. line breaks) compare equal to each other. */
-export function diffRaw(a: string, b: string): RawSeg[] {
+/**
+ * Source-text token diff. By default whitespace runs (incl. line breaks) compare equal to each other;
+ * exactWhitespace (code) compares them exactly.
+ */
+export function diffRaw(a: string, b: string, opts: { exactWhitespace?: boolean } = {}): RawSeg[] {
   const ta = rawTokens(a);
   const tb = rawTokens(b);
   const out: RawSeg[] = [];
   let ia = 0;
   let ib = 0;
-  for (const ch of diffArrays(ta, tb, { comparator: (x, y) => x === y || (isSpace(x) && isSpace(y)) })) {
+  for (const ch of diffArrays(ta, tb, { comparator: (x, y) => x === y || (!opts.exactWhitespace && isSpace(x) && isSpace(y)) })) {
     const n = ch.count ?? ch.value.length;
     if (ch.removed) {
       for (let k = 0; k < n; k++) pushRaw(out, 'delete', ta[ia + k]);

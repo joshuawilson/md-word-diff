@@ -1,30 +1,41 @@
 import { IS_WORD } from './inline';
 
-export type WordBag = { counts: Map<string, number>; size: number };
+/** Sorted word ids (with multiplicity) for fast multiset intersection. */
+export type WordBag = Int32Array;
+
+const ids = new Map<string, number>();
+
+function wordId(w: string): number {
+  let id = ids.get(w);
+  if (id === undefined) {
+    id = ids.size;
+    ids.set(w, id);
+  }
+  return id;
+}
 
 export function wordBag(words: string[]): WordBag {
-  const counts = new Map<string, number>();
-  let size = 0;
-  for (const w of words) {
-    if (!IS_WORD.test(w)) continue;
-    const k = w.toLowerCase();
-    counts.set(k, (counts.get(k) ?? 0) + 1);
-    size++;
-  }
-  return { counts, size };
+  const out: number[] = [];
+  for (const w of words) if (IS_WORD.test(w)) out.push(wordId(w.toLowerCase()));
+  return Int32Array.from(out).sort();
 }
 
 /** Dice coefficient over word multisets; both empty -> 1. */
 export function bagSimilarity(a: WordBag, b: WordBag): number {
-  if (a.size === 0 && b.size === 0) return 1;
-  if (a.size === 0 || b.size === 0) return 0;
-  const [small, big] = a.counts.size <= b.counts.size ? [a, b] : [b, a];
+  if (a.length === 0 && b.length === 0) return 1;
+  if (a.length === 0 || b.length === 0) return 0;
+  let i = 0;
+  let j = 0;
   let common = 0;
-  for (const [k, n] of small.counts) {
-    const m = big.counts.get(k);
-    if (m) common += Math.min(n, m);
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      common++;
+      i++;
+      j++;
+    } else if (a[i] < b[j]) i++;
+    else j++;
   }
-  return (2 * common) / (a.size + b.size);
+  return (2 * common) / (a.length + b.length);
 }
 
 /** Dice over lowercased word multisets (punctuation & spaces ignored); both empty -> 1. */
