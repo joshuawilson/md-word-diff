@@ -254,3 +254,15 @@ A 5,000-line document diffs and renders in under 1 second.
   there are too many candidates.
 - Default `mdWordDiff.pairingThreshold` stays **0.35** (Normal); 0.30 was tried on the
   user's chapter and added false pairs. Loose 0.2, Strict 0.6.
+
+## Addendum 2026-11-23 (3): manual pairing (user approved)
+
+Word matching can't see paraphrase (a paragraph rewritten sentence by sentence), so the
+user can pair blocks by hand. Blocks with an old side (deleted, moved stubs, modified)
+show a **Pair with…** button; clicking it enters pick mode (banner, Esc cancels) where
+compatible blocks with a new side (text↔text, code↔code, table↔table) are clickable.
+The chosen pair is diffed word by word at the new block's position, labelled
+`paired manually`, with an **Unpair** link. Partners previously matched to either block
+are released and re-matched. Manual pairs are kept per panel (by old/new block index),
+survive Grouping/Pairing changes and live edits, and are dropped if an index no longer
+exists or the kinds are incompatible. Engine: `diffMarkdown(..., { forced: [oldIdx, newIdx][] })`.

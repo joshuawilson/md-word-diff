@@ -55,6 +55,7 @@ function collapse(s: string): string {
 function emit(ctx: Ctx, cs: Container[], item: ItemInfo | null, kind: BlockKind, source: string, content: string, extra: Partial<Block>): void {
   ctx.out.push({
     kind,
+    index: ctx.out.length,
     containers: cs.slice(),
     itemStart: item !== null,
     checked: item?.checked ?? null,

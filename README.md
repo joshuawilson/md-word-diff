@@ -33,11 +33,13 @@ In the panel:
 | **Grouping: Off · 1 word · 2 words** | Merge nearby word changes into one block: new text first, then the old text struck through. Off = every changed word separately. |
 | **▲ Prev / ▼ Next** (`Alt+↑` / `Alt+↓`) | Jump between changes |
 | **Hide unchanged** | Fold runs of unchanged blocks |
+| **Pair with…** (hover a deleted, moved or modified block) | Pick the new block it became; the two are compared word by word. Use it when a paragraph was reworded so much that automatic matching can't tell. **Unpair** undoes it; **Clear** in the toolbar removes all manual pairs. |
 
 Marks: <ins>green</ins> = added, followed by <del>red strikethrough</del> = removed (new text always comes first), dotted amber
 underline = formatting-only change (hover to see what it was, e.g. `was: plain`,
 `was: link https://old-url`). Labels like `heading 2 → 3` or `became list item` flag
-structural changes. Reordered paragraphs show as deleted in the old spot and inserted in the new one.
+structural changes. A block that moved shows at its new position labelled `moved from above/below`,
+with a small `↓ moved below` / `↑ moved above` link left at its old spot.
 
 ## Settings
 

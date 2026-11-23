@@ -26,6 +26,8 @@ export interface DiffBlock {
   movedTo?: number;
   /** Moved block only: id of the stub at its old position. */
   movedFrom?: number;
+  /** Paired by the user (manual pairing). */
+  forced?: boolean;
 }
 
 export interface DiffResult {
@@ -117,6 +119,12 @@ function fromOp(op: AlignOp<Block>, id: number, threshold: number): DiffBlock {
   }
 }
 
+function markForced(d: DiffBlock): DiffBlock {
+  d.forced = true;
+  d.markers.unshift('paired manually');
+  return d;
+}
+
 function movedStub(id: number, block: Block, fromAbove: boolean, movedTo: number): DiffBlock {
   return { id, status: 'movedAway', block, raw: [], markers: [fromAbove ? '↓ moved below' : '↑ moved above'], movedTo };
 }
@@ -134,8 +142,10 @@ function fromMoveOps(ops: MoveOp<Block>[], threshold: number): DiffBlock[] {
       const d = pairBlock(id, op.a, op.b, threshold);
       d.markers.unshift(src < id ? 'moved from above' : 'moved from below');
       d.movedFrom = src;
+      if (op.forced) markForced(d);
       return d;
     }
+    if (op.op === 'pair' && op.forced) return markForced(pairBlock(id, op.a, op.b, threshold));
     if (op.op === 'moveFrom') {
       const dst = toId.get(op.link)!;
       return movedStub(id, op.a, id < dst, dst);
@@ -206,12 +216,20 @@ function detectMoves(blocks: DiffBlock[], threshold: number): void {
 }
 
 /** Compare two markdown documents block by block with word-level diffs inside paired blocks. */
-export function diffMarkdown(oldMd: string, newMd: string, opts: { threshold: number; grouping?: Grouping }): DiffResult {
+export interface DiffOptions {
+  threshold: number;
+  grouping?: Grouping;
+  /** Manual pairs as [old block index, new block index]; invalid or incompatible ones are ignored. */
+  forced?: [number, number][];
+}
+
+export function diffMarkdown(oldMd: string, newMd: string, opts: DiffOptions): DiffResult {
   const a = parseBlocks(oldMd);
   const b = parseBlocks(newMd);
   const alignOpts = { key: (x: Block) => x.key, words: blockWords, compatible, threshold: opts.threshold };
   const stats = { changes: 0, wordsAdded: 0, wordsRemoved: 0 };
-  const moveOps = alignWithMoves(a, b, alignOpts, MOVE_PAIR_LIMIT);
+  const forced = (opts.forced ?? []).filter(([i, j]) => a[i] && b[j] && compatible(a[i], b[j]));
+  const moveOps = alignWithMoves(a, b, alignOpts, MOVE_PAIR_LIMIT, forced);
   let blocks: DiffBlock[];
   if (moveOps) {
     blocks = fromMoveOps(moveOps, opts.threshold);

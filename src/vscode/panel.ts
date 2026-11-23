@@ -55,7 +55,9 @@ function shellHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
   <button id="prev" title="Previous change (Alt+↑)">▲ Prev</button>
   <button id="next" title="Next change (Alt+↓)">▼ Next</button>
   <label><input type="checkbox" id="hide"> Hide unchanged</label>
+  <span id="manual" class="view-hidden"><span id="manual-count"></span> <button id="clear-pairs" title="Remove all manual pairs">Clear</button></span>
 </div>
+<div id="pick-banner" class="view-hidden">Click the new block to compare with the selected old block · <button id="pick-cancel">Cancel (Esc)</button></div>
 <div id="doc"><div id="rendered"></div><div id="raw" class="view-hidden"></div></div>
 <script nonce="${n}" src="${js}"></script>
 </body></html>`;
@@ -75,6 +77,8 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
   let grouping: Grouping = cfg === 'off' || cfg === '2' ? cfg : '1';
   let oldText: string | undefined;
   let ready = false;
+  /** Manual pairs [old block index, new block index], kept for the life of the panel. */
+  let forced: [number, number][] = [];
   const disposables: vscode.Disposable[] = [];
 
   const render = async () => {
@@ -82,7 +86,7 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
     try {
       oldText ??= await src.getOld();
       const newText = await src.getNew();
-      const result = diffMarkdown(oldText, newText, { threshold: thresholdFor(pairing), grouping });
+      const result = diffMarkdown(oldText, newText, { threshold: thresholdFor(pairing), grouping, forced });
       void panel.webview.postMessage({
         type: 'render',
         rendered: renderRendered(result),
@@ -91,6 +95,7 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
         label: `${src.label} → ${src.newLabel}`,
         pairing,
         grouping,
+        manualPairs: result.blocks.filter(b => b.forced).length,
       });
     } catch (err) {
       void vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
@@ -99,7 +104,7 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
   };
 
   disposables.push(
-    panel.webview.onDidReceiveMessage((msg: { type: string; value?: string }) => {
+    panel.webview.onDidReceiveMessage((msg: { type: string; value?: string; oi?: number; ni?: number }) => {
       if (msg.type === 'ready') {
         ready = true;
         void render();
@@ -108,6 +113,16 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
         void render();
       } else if (msg.type === 'grouping' && (msg.value === 'off' || msg.value === '1' || msg.value === '2')) {
         grouping = msg.value;
+        void render();
+      } else if (msg.type === 'forcePair' && Number.isInteger(msg.oi) && Number.isInteger(msg.ni)) {
+        forced = forced.filter(([i, j]) => i !== msg.oi && j !== msg.ni);
+        forced.push([msg.oi!, msg.ni!]);
+        void render();
+      } else if (msg.type === 'unpair' && Number.isInteger(msg.oi)) {
+        forced = forced.filter(([i]) => i !== msg.oi);
+        void render();
+      } else if (msg.type === 'clearPairs') {
+        forced = [];
         void render();
       }
     }),

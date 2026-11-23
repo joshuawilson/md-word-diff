@@ -17,6 +17,7 @@ interface RenderMsg {
   label: string;
   pairing: 'loose' | 'normal' | 'strict';
   grouping: 'off' | '1' | '2';
+  manualPairs: number;
 }
 
 declare function acquireVsCodeApi(): VsApi;
@@ -118,6 +119,9 @@ window.addEventListener('message', (e: MessageEvent<RenderMsg>) => {
   $('stats').textContent = `${s.changes} change${s.changes === 1 ? '' : 's'} · +${s.wordsAdded} / −${s.wordsRemoved} words`;
   setActive($('pairing'), 'data-p', msg.pairing);
   setActive($('grouping'), 'data-g', msg.grouping);
+  $('manual').classList.toggle('view-hidden', msg.manualPairs === 0);
+  $('manual-count').textContent = `${msg.manualPairs} manual pair${msg.manualPairs === 1 ? '' : 's'}`;
+  cancelPick();
   applyHide(views.rendered);
   applyHide(views.raw);
   current = -1;
@@ -150,7 +154,78 @@ hide.addEventListener('change', () => {
   applyHide(views.raw);
   save();
 });
+// Manual pairing: "Pair with…" on an old block, then click a compatible new block.
+let pickFrom: { oi: number; family: string; el: HTMLElement } | null = null;
+
+function cancelPick(): void {
+  if (!pickFrom) return;
+  pickFrom.el.classList.remove('pick-source');
+  document.body.classList.remove('picking');
+  document.querySelectorAll('.pick-target').forEach(el => el.classList.remove('pick-target'));
+  $('pick-banner').classList.add('view-hidden');
+  pickFrom = null;
+}
+
+function startPick(btn: HTMLElement): void {
+  cancelPick();
+  const blk = btn.closest<HTMLElement>('.blk');
+  if (!blk) return;
+  pickFrom = { oi: Number(btn.dataset.oi), family: blk.dataset.family ?? '', el: blk };
+  blk.classList.add('pick-source');
+  document.body.classList.add('picking');
+  views[state.view]
+    .querySelectorAll<HTMLElement>(`.blk[data-ni][data-family="${pickFrom.family}"]`)
+    .forEach(el => el !== blk && el.classList.add('pick-target'));
+  $('pick-banner').classList.remove('view-hidden');
+}
+
+document.addEventListener(
+  'click',
+  e => {
+    const t = e.target as HTMLElement;
+    const pairBtn = t.closest<HTMLElement>('.pair-btn');
+    if (pairBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      startPick(pairBtn);
+      return;
+    }
+    const unpair = t.closest<HTMLElement>('.unpair-btn');
+    if (unpair) {
+      e.preventDefault();
+      e.stopPropagation();
+      vscode.postMessage({ type: 'unpair', oi: Number(unpair.dataset.oi) });
+      return;
+    }
+    if (pickFrom) {
+      const target = t.closest<HTMLElement>('.pick-target');
+      e.preventDefault();
+      e.stopPropagation();
+      if (target) vscode.postMessage({ type: 'forcePair', oi: pickFrom.oi, ni: Number(target.dataset.ni) });
+      if (target || t.closest('#pick-cancel')) cancelPick();
+      return;
+    }
+    const link = t.closest<HTMLElement>('.move-link');
+    if (link) {
+      e.preventDefault();
+      const el = views[state.view].querySelector<HTMLElement>(`.blk[data-id="${link.dataset.target}"]`);
+      if (el) {
+        el.classList.remove('run-hidden');
+        el.scrollIntoView({ block: 'center' });
+        el.classList.add('flash');
+        setTimeout(() => el.classList.remove('flash'), 600);
+      }
+    }
+  },
+  true,
+);
+$('clear-pairs').addEventListener('click', () => vscode.postMessage({ type: 'clearPairs' }));
+
 document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && pickFrom) {
+    cancelPick();
+    return;
+  }
   if (e.altKey && e.key === 'ArrowDown') {
     e.preventDefault();
     go(1);

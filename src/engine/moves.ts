@@ -4,22 +4,24 @@ import { bagSimilarity, wordBag, type WordBag } from './similarity';
 
 /** Ops for block alignment with moves. moveTo sits at the new position, moveFrom at the old one. */
 export type MoveOp<T> =
-  | { op: 'equal' | 'pair'; a: T; b: T }
+  | { op: 'equal' | 'pair'; a: T; b: T; forced?: boolean }
   | { op: 'delete'; a: T }
   | { op: 'insert'; b: T }
-  | { op: 'moveTo'; a: T; b: T; link: number }
+  | { op: 'moveTo'; a: T; b: T; link: number; forced?: boolean }
   | { op: 'moveFrom'; a: T; link: number };
 
 /** Identical runs with at least this many words anchor in place (same rule as align()). */
 const STRONG_ANCHOR_WORDS = 8;
 const MIN_WEIGHT = 0.5;
 const ANCHOR_WEIGHT = 1e9;
+const FORCED_WEIGHT = 1e6;
 
 interface Match {
   i: number;
   j: number;
   w: number;
   anchor: boolean;
+  forced?: boolean;
 }
 
 /** Max over a prefix of positions, remembering which item gave it (Fenwick tree). */
@@ -60,7 +62,13 @@ class PrefixMax {
  * 3. The heaviest set of matches that keeps document order (with all anchors) stays in place;
  *    every other match is a move.
  */
-export function alignWithMoves<T>(a: T[], b: T[], opts: AlignOptions<T>, maxCandidates: number): MoveOp<T>[] | null {
+export function alignWithMoves<T>(
+  a: T[],
+  b: T[],
+  opts: AlignOptions<T>,
+  maxCandidates: number,
+  forced: [number, number][] = [],
+): MoveOp<T>[] | null {
   const ka = a.map(opts.key);
   const kb = b.map(opts.key);
   const bagA: WordBag[] = a.map(x => wordBag(opts.words(x)));
@@ -69,6 +77,13 @@ export function alignWithMoves<T>(a: T[], b: T[], opts: AlignOptions<T>, maxCand
   const matches: Match[] = [];
   const anchoredA = new Uint8Array(a.length);
   const anchoredB = new Uint8Array(b.length);
+  // Manual pairs come first; their blocks are taken out of anchoring and automatic matching.
+  for (const [fi, fj] of forced) {
+    if (anchoredA[fi] || anchoredB[fj]) continue;
+    matches.push({ i: fi, j: fj, w: FORCED_WEIGHT, anchor: false, forced: true });
+    anchoredA[fi] = 1;
+    anchoredB[fj] = 1;
+  }
   let i = 0;
   let j = 0;
   for (const run of lcsRuns(ka, kb)) {
@@ -79,6 +94,7 @@ export function alignWithMoves<T>(a: T[], b: T[], opts: AlignOptions<T>, maxCand
       for (let k = 0; k < run.count; k++) words += bagA[i + k].length;
       if (words >= STRONG_ANCHOR_WORDS) {
         for (let k = 0; k < run.count; k++) {
+          if (anchoredA[i + k] || anchoredB[j + k]) continue;
           matches.push({ i: i + k, j: j + k, w: ANCHOR_WEIGHT, anchor: true });
           anchoredA[i + k] = 1;
           anchoredB[j + k] = 1;
@@ -93,10 +109,11 @@ export function alignWithMoves<T>(a: T[], b: T[], opts: AlignOptions<T>, maxCand
   const freeB: number[] = [];
   a.forEach((_, x) => anchoredA[x] || freeA.push(x));
   b.forEach((_, y) => anchoredB[y] || freeB.push(y));
-  if (freeA.length * freeB.length > maxCandidates) return null;
+  const tooMany = freeA.length * freeB.length > maxCandidates;
+  if (tooMany && !forced.length) return null;
 
   const cands: Match[] = [];
-  for (const x of freeA) {
+  for (const x of tooMany ? [] : freeA) {
     for (const y of freeB) {
       let w: number;
       if (ka[x] === kb[y]) w = Math.max(MIN_WEIGHT, bagA[x].length);
@@ -155,7 +172,7 @@ export function alignWithMoves<T>(a: T[], b: T[], opts: AlignOptions<T>, maxCand
     for (let y = pj; y < ej; y++) {
       const k = pairOfB[y];
       if (k < 0) out.push({ op: 'insert', b: b[y] });
-      else out.push({ op: 'moveTo', a: a[matches[k].i], b: b[y], link: link[k] });
+      else out.push({ op: 'moveTo', a: a[matches[k].i], b: b[y], link: link[k], forced: matches[k].forced });
     }
     for (let x = pi; x < ei; x++) {
       const k = pairOfA[x];
@@ -165,7 +182,7 @@ export function alignWithMoves<T>(a: T[], b: T[], opts: AlignOptions<T>, maxCand
   };
   for (const m of backbone) {
     emitBetween(m.i, m.j);
-    out.push({ op: ka[m.i] === kb[m.j] ? 'equal' : 'pair', a: a[m.i], b: b[m.j] });
+    out.push({ op: ka[m.i] === kb[m.j] && !m.forced ? 'equal' : 'pair', a: a[m.i], b: b[m.j], forced: m.forced });
     pi = m.i + 1;
     pj = m.j + 1;
   }
