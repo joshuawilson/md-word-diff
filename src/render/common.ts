@@ -35,10 +35,14 @@ function attrs(b: DiffBlock): string {
 
 /** Pair / Unpair controls for blocks that have an old side. */
 export function pairControls(b: DiffBlock): string {
-  const { oi } = sides(b);
+  const { oi, ni } = sides(b);
   if (oi === undefined || b.status === 'unchanged') return '';
-  if (b.forced) return `<button class="unpair-btn" data-oi="${oi}" title="Undo this manual pairing">Unpair</button>`;
-  return `<button class="pair-btn" data-oi="${oi}" title="Compare this old block with a new block you pick">Pair with…</button>`;
+  if (b.forced) return `<span class="blk-actions"><button class="unpair-btn" data-oi="${oi}" title="Undo this manual pairing">Unpair</button></span>`;
+  const split =
+    b.status === 'modified' && ni !== undefined
+      ? `<button class="split-btn" data-oi="${oi}" data-ni="${ni}" title="These blocks don't belong together: show them as deleted and inserted">Unpair</button>`
+      : '';
+  return `<span class="blk-actions">${split}<button class="pair-btn" data-oi="${oi}" title="Compare this old block with a new block you pick">Pair with…</button></span>`;
 }
 
 export function blockOpen(b: DiffBlock): string {

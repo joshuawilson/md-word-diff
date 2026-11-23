@@ -19,6 +19,7 @@ interface RenderMsg {
   grouping: 'off' | '1' | '2';
   ignoreWrap: boolean;
   manualPairs: number;
+  unpairs: number;
 }
 
 declare function acquireVsCodeApi(): VsApi;
@@ -121,8 +122,11 @@ window.addEventListener('message', (e: MessageEvent<RenderMsg>) => {
   setActive($('pairing'), 'data-p', msg.pairing);
   setActive($('grouping'), 'data-g', msg.grouping);
   $<HTMLInputElement>('ignore-wrap').checked = msg.ignoreWrap;
-  $('manual').classList.toggle('view-hidden', msg.manualPairs === 0);
-  $('manual-count').textContent = `${msg.manualPairs} manual pair${msg.manualPairs === 1 ? '' : 's'}`;
+  $('manual').classList.toggle('view-hidden', msg.manualPairs === 0 && msg.unpairs === 0);
+  const parts: string[] = [];
+  if (msg.manualPairs) parts.push(`${msg.manualPairs} manual pair${msg.manualPairs === 1 ? '' : 's'}`);
+  if (msg.unpairs) parts.push(`${msg.unpairs} unpaired`);
+  $('manual-count').textContent = parts.join(' · ');
   cancelPick();
   applyHide(views.rendered);
   applyHide(views.raw);
@@ -190,6 +194,13 @@ document.addEventListener(
       e.preventDefault();
       e.stopPropagation();
       startPick(pairBtn);
+      return;
+    }
+    const split = t.closest<HTMLElement>('.split-btn');
+    if (split) {
+      e.preventDefault();
+      e.stopPropagation();
+      vscode.postMessage({ type: 'split', oi: Number(split.dataset.oi), ni: Number(split.dataset.ni) });
       return;
     }
     const unpair = t.closest<HTMLElement>('.unpair-btn');

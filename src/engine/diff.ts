@@ -200,7 +200,7 @@ const MOVE_PAIR_LIMIT = 2_000_000;
  * words first. The inserted block becomes a modified block labelled as moved; the deleted
  * block becomes a stub pointing at it.
  */
-function detectMoves(blocks: DiffBlock[], opts: DiffOptions): void {
+function detectMoves(blocks: DiffBlock[], opts: DiffOptions, canPair: (x: Block, y: Block) => boolean): void {
   const dels = blocks.filter(b => b.status === 'deleted');
   const inss = blocks.filter(b => b.status === 'inserted');
   if (!dels.length || !inss.length || dels.length * inss.length > MOVE_PAIR_LIMIT) return;
@@ -212,7 +212,7 @@ function detectMoves(blocks: DiffBlock[], opts: DiffOptions): void {
       let score: number;
       if (d.block.key === ins.block.key) score = Math.max(0.5, bagD[x].length);
       else {
-        if (!compatible(d.block, ins.block)) return;
+        if (!canPair(d.block, ins.block)) return;
         const sim = bagSimilarity(bagD[x], bagI[y]);
         if (sim < opts.threshold) return;
         score = (sim * (bagD[x].length + bagI[y].length)) / 2;
@@ -247,12 +247,17 @@ export interface DiffOptions {
   ignoreWrap?: boolean;
   /** Manual pairs as [old block index, new block index]; invalid or incompatible ones are ignored. */
   forced?: [number, number][];
+  /** Automatic pairs the user broke, as [old block index, new block index]; both blocks stay out of automatic matching. */
+  unpaired?: [number, number][];
 }
 
 export function diffMarkdown(oldMd: string, newMd: string, opts: DiffOptions): DiffResult {
   const a = parseBlocks(oldMd, { ignoreWrap: opts.ignoreWrap });
   const b = parseBlocks(newMd, { ignoreWrap: opts.ignoreWrap });
-  const alignOpts = { key: (x: Block) => x.key, words: blockWords, compatible, threshold: opts.threshold };
+  const exA = new Set((opts.unpaired ?? []).map(([i]) => i));
+  const exB = new Set((opts.unpaired ?? []).map(([, j]) => j));
+  const canPair = (x: Block, y: Block) => !exA.has(x.index) && !exB.has(y.index) && compatible(x, y);
+  const alignOpts = { key: (x: Block) => x.key, words: blockWords, compatible: canPair, threshold: opts.threshold };
   const stats = { changes: 0, wordsAdded: 0, wordsRemoved: 0 };
   const forced = (opts.forced ?? []).filter(([i, j]) => a[i] && b[j] && pairGroup(a[i].kind) === pairGroup(b[j].kind));
   const moveOps = alignWithMoves(a, b, alignOpts, MOVE_PAIR_LIMIT, forced);
@@ -262,7 +267,7 @@ export function diffMarkdown(oldMd: string, newMd: string, opts: DiffOptions): D
   } else {
     // Too many candidates for global matching: in-order alignment, then match leftovers as moves.
     blocks = align(a, b, alignOpts).map((op, id) => fromOp(op, id, opts));
-    detectMoves(blocks, opts);
+    detectMoves(blocks, opts, canPair);
   }
   for (const blk of blocks) {
     if (blk.status === 'movedAway') continue;

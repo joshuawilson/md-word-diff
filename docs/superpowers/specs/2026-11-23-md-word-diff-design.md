@@ -276,3 +276,11 @@ exists or the kinds are incompatible. Engine: `diffMarkdown(..., { forced: [oldI
   spaces (the previous behavior). Hard breaks are still kept.
 - Manual pairing may pair a code block with text (either direction); they are compared
   as plain text, line by line. Tables still pair only with tables.
+
+## Addendum 2026-11-23 (5): unpair automatic pairs (user approved)
+
+Automatic pairs (edited or moved blocks) get an **Unpair** button beside **Pair with…**.
+Unpairing shows both blocks as deleted + inserted and keeps both out of automatic matching
+(they can still be paired by hand; a manual pair wins). Engine:
+`diffMarkdown(..., { unpaired: [oldIdx, newIdx][] })`. Kept per panel like manual pairs;
+the toolbar **Clear** resets manual pairs and unpairs together.

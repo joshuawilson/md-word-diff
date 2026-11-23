@@ -60,8 +60,9 @@ ins + del { margin-left: 0.3em; }
 .move-link:hover { color: var(--vscode-textLink-foreground); text-decoration: underline; }
 /* Manual pairing */
 .blk { position: relative; }
-.pair-btn, .unpair-btn { position: absolute; right: 0; top: 0; z-index: 2; display: none; font: 11px var(--vscode-font-family); padding: 1px 6px; cursor: pointer; border-radius: 3px; border: 1px solid var(--vscode-editorWidget-border, #555); background: var(--vscode-editorWidget-background, #252526); color: var(--vscode-foreground); }
-.blk:hover > .pair-btn, .blk:hover > .unpair-btn, .unpair-btn { display: inline-block; }
+.blk-actions { position: absolute; right: 0; top: 0; z-index: 2; display: none; gap: 4px; }
+.blk:hover > .blk-actions, .blk.forced > .blk-actions { display: inline-flex; }
+.pair-btn, .unpair-btn, .split-btn { font: 11px var(--vscode-font-family); padding: 1px 6px; cursor: pointer; border-radius: 3px; border: 1px solid var(--vscode-editorWidget-border, #555); background: var(--vscode-editorWidget-background, #252526); color: var(--vscode-foreground); }
 .blk.forced { border-left-style: double; border-left-width: 4px; }
 body.picking .blk:not(.pick-target):not(.pick-source) { opacity: 0.45; }
 body.picking .pick-target { cursor: pointer; outline: 1px dashed var(--vscode-focusBorder, #007fd4); }

@@ -56,7 +56,7 @@ function shellHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
   <button id="next" title="Next change (Alt+↓)">▼ Next</button>
   <label title="Treat wrapped lines inside a paragraph as spaces (deliberate line breaks are kept)"><input type="checkbox" id="ignore-wrap"> Ignore line wrap</label>
   <label><input type="checkbox" id="hide"> Hide unchanged</label>
-  <span id="manual" class="view-hidden"><span id="manual-count"></span> <button id="clear-pairs" title="Remove all manual pairs">Clear</button></span>
+  <span id="manual" class="view-hidden"><span id="manual-count"></span> <button id="clear-pairs" title="Remove all manual pairs and unpairs">Clear</button></span>
 </div>
 <div id="pick-banner" class="view-hidden">Click the new block to compare with the selected old block · <button id="pick-cancel">Cancel (Esc)</button></div>
 <div id="doc"><div id="rendered"></div><div id="raw" class="view-hidden"></div></div>
@@ -81,6 +81,8 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
   let ready = false;
   /** Manual pairs [old block index, new block index], kept for the life of the panel. */
   let forced: [number, number][] = [];
+  /** Automatic pairs the user broke apart, [old block index, new block index]. */
+  let unpaired: [number, number][] = [];
   const disposables: vscode.Disposable[] = [];
 
   const render = async () => {
@@ -88,7 +90,7 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
     try {
       oldText ??= await src.getOld();
       const newText = await src.getNew();
-      const result = diffMarkdown(oldText, newText, { threshold: thresholdFor(pairing), grouping, forced, ignoreWrap });
+      const result = diffMarkdown(oldText, newText, { threshold: thresholdFor(pairing), grouping, forced, unpaired, ignoreWrap });
       void panel.webview.postMessage({
         type: 'render',
         rendered: renderRendered(result),
@@ -99,6 +101,7 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
         grouping,
         ignoreWrap,
         manualPairs: result.blocks.filter(b => b.forced).length,
+        unpairs: unpaired.length,
       });
     } catch (err) {
       void vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
@@ -127,8 +130,12 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
       } else if (msg.type === 'ignoreWrap' && typeof msg.value === 'boolean') {
         ignoreWrap = msg.value;
         void render();
+      } else if (msg.type === 'split' && Number.isInteger(msg.oi) && Number.isInteger(msg.ni)) {
+        unpaired.push([msg.oi!, msg.ni!]);
+        void render();
       } else if (msg.type === 'clearPairs') {
         forced = [];
+        unpaired = [];
         void render();
       }
     }),

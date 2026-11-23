@@ -116,9 +116,9 @@ export function alignWithMoves<T>(
   for (const x of tooMany ? [] : freeA) {
     for (const y of freeB) {
       let w: number;
+      if (!opts.compatible(a[x], b[y]) && ka[x] !== kb[y]) continue;
       if (ka[x] === kb[y]) w = Math.max(MIN_WEIGHT, bagA[x].length);
       else {
-        if (!opts.compatible(a[x], b[y])) continue;
         const s = bagSimilarity(bagA[x], bagB[y]);
         if (s < opts.threshold) continue;
         w = Math.max(MIN_WEIGHT, (s * (bagA[x].length + bagB[y].length)) / 2);

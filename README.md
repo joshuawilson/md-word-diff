@@ -35,7 +35,8 @@ In the panel:
 | **▲ Prev / ▼ Next** (`Alt+↑` / `Alt+↓`) | Jump between changes |
 | **Ignore line wrap** | Off (default): line breaks inside paragraphs are shown and compared. On: wrapped lines count as spaces, so re-wrapping isn't a change. Deliberate breaks (trailing `\` or two spaces) are always kept. |
 | **Hide unchanged** | Fold runs of unchanged blocks |
-| **Pair with…** (hover a deleted, moved or modified block) | Pick the new block it became; the two are compared word by word. Use it when a paragraph was reworded so much that automatic matching can't tell. **Unpair** undoes it; **Clear** in the toolbar removes all manual pairs. |
+| **Pair with…** (hover a deleted, moved or modified block) | Pick the new block it became; the two are compared word by word. Use it when a paragraph was reworded so much that automatic matching can't tell. **Unpair** undoes it. |
+| **Unpair** (hover an automatically paired or moved block) | The two blocks don't belong together: show them as deleted + inserted and keep them out of automatic matching. **Clear** in the toolbar resets manual pairs and unpairs. |
 
 Marks: <ins>green</ins> = added, followed by <del>red strikethrough</del> = removed (new text always comes first), dotted amber
 underline = formatting-only change (hover to see what it was, e.g. `was: plain`,
