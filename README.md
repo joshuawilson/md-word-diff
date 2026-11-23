@@ -30,15 +30,18 @@ In the panel:
 |---|---|
 | **Rendered / Raw** | Formatted document, or markdown source with the same marks |
 | **Pairing: Loose · Normal · Strict** | How readily a rewritten paragraph counts as an *edit* (word marks) vs. a whole deletion + insertion. Use **Loose** for drastic rewrites. |
+| **Grouping: Off · 1 word · 2 words** | Merge nearby word changes into one block: new text first, then the old text struck through. Off = every changed word separately. |
 | **▲ Prev / ▼ Next** (`Alt+↑` / `Alt+↓`) | Jump between changes |
 | **Hide unchanged** | Fold runs of unchanged blocks |
 
-Marks: <del>red strikethrough</del> = removed, <ins>green</ins> = added, dotted amber
+Marks: <ins>green</ins> = added, followed by <del>red strikethrough</del> = removed (new text always comes first), dotted amber
 underline = formatting-only change (hover to see what it was, e.g. `was: plain`,
 `was: link https://old-url`). Labels like `heading 2 → 3` or `became list item` flag
 structural changes. Reordered paragraphs show as deleted in the old spot and inserted in the new one.
 
-## Setting
+## Settings
+
+`mdWordDiff.grouping` (default `1`): `off`, `1` or `2` — how many unchanged words between two changes get absorbed so the changes show as one block. Word counts in the toolbar always count real word changes.
 
 `mdWordDiff.pairingThreshold` (default `0.35`): share of words two blocks must have in
 common to be paired as an edit. Lower it if heavy rewrites show up as whole

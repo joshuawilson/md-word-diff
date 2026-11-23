@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { diffMarkdown } from '../engine/diff';
 import { renderRaw } from '../render/raw';
 import { renderRendered } from '../render/rendered';
+import type { Grouping } from '../engine/group';
 
 export type Pairing = 'loose' | 'normal' | 'strict';
 
@@ -49,7 +50,8 @@ function shellHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
   <span class="seg" id="view"><button data-v="rendered" class="on">Rendered</button><button data-v="raw">Raw</button></span>
   <span id="label"></span>
   <span id="stats"></span>
-  <span class="seg" id="pairing" title="How similar two blocks must be to count as an edit (Loose pairs heavy rewrites)"><button data-p="loose">Loose</button><button data-p="normal" class="on">Normal</button><button data-p="strict">Strict</button></span>
+  Pairing: <span class="seg" id="pairing" title="How similar two blocks must be to count as an edit (Loose pairs heavy rewrites)"><button data-p="loose">Loose</button><button data-p="normal" class="on">Normal</button><button data-p="strict">Strict</button></span>
+  Grouping: <span class="seg" id="grouping" title="Merge nearby word changes: new text first, then old text struck through"><button data-g="off">Off</button><button data-g="1">1 word</button><button data-g="2">2 words</button></span>
   <button id="prev" title="Previous change (Alt+↑)">▲ Prev</button>
   <button id="next" title="Next change (Alt+↓)">▼ Next</button>
   <label><input type="checkbox" id="hide"> Hide unchanged</label>
@@ -69,6 +71,8 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
   panel.webview.html = shellHtml(panel.webview, ctx.extensionUri);
 
   let pairing: Pairing = 'normal';
+  const cfg = vscode.workspace.getConfiguration('mdWordDiff').get<string>('grouping', '1');
+  let grouping: Grouping = cfg === 'off' || cfg === '2' ? cfg : '1';
   let oldText: string | undefined;
   let ready = false;
   const disposables: vscode.Disposable[] = [];
@@ -78,7 +82,7 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
     try {
       oldText ??= await src.getOld();
       const newText = await src.getNew();
-      const result = diffMarkdown(oldText, newText, { threshold: thresholdFor(pairing) });
+      const result = diffMarkdown(oldText, newText, { threshold: thresholdFor(pairing), grouping });
       void panel.webview.postMessage({
         type: 'render',
         rendered: renderRendered(result),
@@ -86,6 +90,7 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
         stats: result.stats,
         label: `${src.label} → ${src.newLabel}`,
         pairing,
+        grouping,
       });
     } catch (err) {
       void vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
@@ -94,12 +99,15 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
   };
 
   disposables.push(
-    panel.webview.onDidReceiveMessage((msg: { type: string; value?: Pairing }) => {
+    panel.webview.onDidReceiveMessage((msg: { type: string; value?: string }) => {
       if (msg.type === 'ready') {
         ready = true;
         void render();
-      } else if (msg.type === 'pairing' && msg.value) {
+      } else if (msg.type === 'pairing' && (msg.value === 'loose' || msg.value === 'normal' || msg.value === 'strict')) {
         pairing = msg.value;
+        void render();
+      } else if (msg.type === 'grouping' && (msg.value === 'off' || msg.value === '1' || msg.value === '2')) {
+        grouping = msg.value;
         void render();
       }
     }),

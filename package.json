@@ -111,6 +111,21 @@
           "minimum": 0,
           "maximum": 1,
           "markdownDescription": "How similar an old and a new block must be (share of words in common, 0\u20131) to be shown as an **edit** with word-level marks rather than a whole deletion plus insertion. Lower = heavy rewrites still shown word by word; too low (< 0.2) pairs unrelated paragraphs. The toolbar **Pairing** control overrides this per panel (Loose = 0.2, Normal = this value, Strict = 0.6)."
+        },
+        "mdWordDiff.grouping": {
+          "type": "string",
+          "enum": [
+            "off",
+            "1",
+            "2"
+          ],
+          "default": "1",
+          "enumDescriptions": [
+            "Word by word: every changed word shown separately",
+            "Merge changes separated by at most 1 unchanged word",
+            "Merge changes separated by at most 2 unchanged words"
+          ],
+          "markdownDescription": "Group nearby word changes so a rewritten phrase reads as one block: new text first, then the old text struck through. The toolbar **Grouping** control overrides this per panel."
         }
       }
     }

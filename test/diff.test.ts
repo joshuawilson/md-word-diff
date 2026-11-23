@@ -16,13 +16,13 @@ test('rewrapped paragraph unchanged', () => {
 });
 
 test('inserted and deleted paragraphs', () => {
-  expect(st(diffMarkdown('keep\n\nzap zap zap', 'keep\n\nbrand new words', T))).toEqual(['unchanged', 'deleted', 'inserted']);
+  expect(st(diffMarkdown('keep\n\nzap zap zap', 'keep\n\nbrand new words', T))).toEqual(['unchanged', 'inserted', 'deleted']);
 });
 
 test('drastic rewrite pairs at 0.2 but not at 0.6', () => {
   const a = 'one two three four five six', b = 'one two nine ten eleven twelve';
   expect(st(diffMarkdown(a, b, { threshold: 0.2 }))).toEqual(['modified']);
-  expect(st(diffMarkdown(a, b, { threshold: 0.6 }))).toEqual(['deleted', 'inserted']);
+  expect(st(diffMarkdown(a, b, { threshold: 0.6 }))).toEqual(['inserted', 'deleted']);
 });
 
 test('format-only change is modified', () => {
@@ -35,7 +35,7 @@ test('table cell edit', () => {
   const r = diffMarkdown('| a | b |\n|---|---|\n| c | d |', '| a | b |\n|---|---|\n| c | e |', T);
   expect(st(r)).toEqual(['modified']);
   expect(r.blocks[0].table![1].op).toBe('pair');
-  expect(r.blocks[0].table![1].cells[1].segs.map(s => s.op)).toEqual(['delete', 'insert']);
+  expect(r.blocks[0].table![1].cells[1].segs.map(s => s.op)).toEqual(['insert', 'delete']);
 });
 
 test('table added column', () => {

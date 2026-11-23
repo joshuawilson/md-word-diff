@@ -3,6 +3,7 @@ import { diffCode, diffTable, tokensAs, type CodeLine, type RowDiff } from './bl
 import { IS_WORD } from './inline';
 import { diffInline, diffRaw, type InlineSeg, type RawSeg } from './inlineDiff';
 import { parseBlocks } from './parse';
+import { gapWordsFor, groupSegs, type Grouping } from './group';
 import type { Block, Container } from './types';
 
 export type { CodeLine, RowDiff, CellDiff } from './blockDiff';
@@ -97,7 +98,7 @@ function tally(b: DiffBlock, stats: DiffResult['stats']): void {
 }
 
 /** Compare two markdown documents block by block with word-level diffs inside paired blocks. */
-export function diffMarkdown(oldMd: string, newMd: string, opts: { threshold: number }): DiffResult {
+export function diffMarkdown(oldMd: string, newMd: string, opts: { threshold: number; grouping?: Grouping }): DiffResult {
   const a = parseBlocks(oldMd);
   const b = parseBlocks(newMd);
   const ops = align(a, b, { key: x => x.key, words: blockWords, compatible, threshold: opts.threshold });
@@ -129,6 +130,15 @@ export function diffMarkdown(oldMd: string, newMd: string, opts: { threshold: nu
   for (const blk of blocks) {
     if (blk.status !== 'unchanged') stats.changes++;
     tally(blk, stats);
+  }
+  // Grouping is display-only: applied after word counts so absorbed words don't count.
+  const gap = gapWordsFor(opts.grouping ?? '1');
+  for (const blk of blocks) {
+    if (blk.status !== 'modified') continue;
+    blk.raw = groupSegs(blk.raw, gap);
+    if (blk.inline) blk.inline = groupSegs(blk.inline, gap);
+    if (blk.table) for (const r of blk.table) for (const c of r.cells) c.segs = groupSegs(c.segs, gap);
+    if (blk.code) for (const l of blk.code) if (l.op === 'modified') l.segs = groupSegs(l.segs, gap);
   }
   return { blocks, stats };
 }

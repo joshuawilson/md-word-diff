@@ -19,14 +19,14 @@ test('edited block pairs', () => {
   expect(ops(align([S('the quick brown fox')], [S('the quick red fox')], opts))).toEqual(['pair']);
 });
 
-test('below threshold -> delete + insert', () => {
-  expect(ops(align([S('a b c d')], [S('w x y z')], opts))).toEqual(['delete', 'insert']);
+test('below threshold -> insert + delete (new first)', () => {
+  expect(ops(align([S('a b c d')], [S('w x y z')], opts))).toEqual(['insert', 'delete']);
 });
 
 test('threshold changes outcome', () => {
   const a = [S('one two three four five six')], b = [S('one two nine ten eleven twelve')];
   expect(ops(align(a, b, { ...opts, threshold: 0.2 }))).toEqual(['pair']);
-  expect(ops(align(a, b, { ...opts, threshold: 0.6 }))).toEqual(['delete', 'insert']);
+  expect(ops(align(a, b, { ...opts, threshold: 0.6 }))).toEqual(['insert', 'delete']);
 });
 
 test('pairs never cross: reorder is delete + insert', () => {
@@ -38,7 +38,7 @@ test('pairs never cross: reorder is delete + insert', () => {
 });
 
 test('incompatible never pair', () => {
-  expect(ops(align([S('a b c')], [S('a b d')], { ...opts, compatible: () => false }))).toEqual(['delete', 'insert']);
+  expect(ops(align([S('a b c')], [S('a b d')], { ...opts, compatible: () => false }))).toEqual(['insert', 'delete']);
 });
 
 test('large gap uses fallback and stays fast', () => {

@@ -46,6 +46,28 @@ export function align<T>(a: T[], b: T[], opts: AlignOptions<T>): AlignOp<T>[] {
     }
   }
   flush();
+  return insertsFirst(out);
+}
+
+/** New first: within each contiguous run of deletions/insertions, insertions come before deletions. */
+function insertsFirst<T>(ops: AlignOp<T>[]): AlignOp<T>[] {
+  const out: AlignOp<T>[] = [];
+  let ins: AlignOp<T>[] = [];
+  let del: AlignOp<T>[] = [];
+  const flush = () => {
+    out.push(...ins, ...del);
+    ins = [];
+    del = [];
+  };
+  for (const op of ops) {
+    if (op.op === 'insert') ins.push(op);
+    else if (op.op === 'delete') del.push(op);
+    else {
+      flush();
+      out.push(op);
+    }
+  }
+  flush();
   return out;
 }
 

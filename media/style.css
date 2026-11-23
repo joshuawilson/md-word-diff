@@ -52,3 +52,5 @@ a { color: var(--vscode-textLink-foreground); }
 .view-hidden { display: none; }
 .run-hidden { display: none !important; }
 li.collapsed-run { list-style: none; }
+/* New-first pairs: small gap between the inserted text and the struck-through old text. */
+ins + del { margin-left: 0.3em; }

@@ -16,6 +16,7 @@ interface RenderMsg {
   stats: { changes: number; wordsAdded: number; wordsRemoved: number };
   label: string;
   pairing: 'loose' | 'normal' | 'strict';
+  grouping: 'off' | '1' | '2';
 }
 
 declare function acquireVsCodeApi(): VsApi;
@@ -116,6 +117,7 @@ window.addEventListener('message', (e: MessageEvent<RenderMsg>) => {
   const s = msg.stats;
   $('stats').textContent = `${s.changes} change${s.changes === 1 ? '' : 's'} · +${s.wordsAdded} / −${s.wordsRemoved} words`;
   setActive($('pairing'), 'data-p', msg.pairing);
+  setActive($('grouping'), 'data-g', msg.grouping);
   applyHide(views.rendered);
   applyHide(views.raw);
   current = -1;
@@ -133,6 +135,10 @@ $('view').addEventListener('click', e => {
 $('pairing').addEventListener('click', e => {
   const p = (e.target as HTMLElement).getAttribute('data-p');
   if (p) vscode.postMessage({ type: 'pairing', value: p });
+});
+$('grouping').addEventListener('click', e => {
+  const g = (e.target as HTMLElement).getAttribute('data-g');
+  if (g) vscode.postMessage({ type: 'grouping', value: g });
 });
 $('prev').addEventListener('click', () => go(-1));
 $('next').addEventListener('click', () => go(1));

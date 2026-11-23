@@ -61,8 +61,12 @@ test('code lines', () => {
   expect(h).toContain('class="ln modified"');
 });
 
-test('raw shows syntax tokens', () => {
-  expect(renderRaw(R('the package', 'the **package**'))).toContain('<ins>**</ins>');
+test('raw shows syntax tokens (grouping off)', () => {
+  expect(renderRaw(diffMarkdown('the package', 'the **package**', { threshold: 0.35, grouping: 'off' }))).toContain('<ins>**</ins>');
+});
+
+test('raw groups syntax change with its word (default grouping)', () => {
+  expect(renderRaw(R('the package', 'the **package**'))).toContain('<ins>**package**</ins><del>package</del>');
 });
 
 test('raw shows list marker', () => {

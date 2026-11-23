@@ -25,13 +25,11 @@ export function diffCode(a: string, b: string): CodeLine[] {
   let dels: string[] = [];
   let inss: string[] = [];
   const flush = () => {
-    const n = Math.max(dels.length, inss.length);
     const paired = Math.min(dels.length, inss.length);
     for (let k = 0; k < paired; k++) out.push({ op: 'modified', segs: diffRaw(dels[k], inss[k], { exactWhitespace: true }) });
-    for (let k = paired; k < n; k++) {
-      if (k < dels.length) out.push({ op: 'delete', segs: [{ op: 'delete', text: dels[k] }] });
-      else out.push({ op: 'insert', segs: [{ op: 'insert', text: inss[k] }] });
-    }
+    // New first: extra inserted lines before extra deleted lines.
+    for (let k = paired; k < inss.length; k++) out.push({ op: 'insert', segs: [{ op: 'insert', text: inss[k] }] });
+    for (let k = paired; k < dels.length; k++) out.push({ op: 'delete', segs: [{ op: 'delete', text: dels[k] }] });
     dels = [];
     inss = [];
   };
