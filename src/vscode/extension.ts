@@ -45,6 +45,7 @@ async function compareWithRevision(ctx: vscode.ExtensionContext, arg: unknown): 
     getOld: () => showFile(t.root, rev, t.relPath),
     getNew: () => (openDoc && !openDoc.isClosed ? openDoc.getText() : readFile(t.uri.fsPath, 'utf8')),
     liveDoc: openDoc,
+    storeKey: `pairs:${t.root}:${t.relPath}:${rev}`,
   });
 }
 
@@ -61,6 +62,7 @@ async function compareTwoRevisions(ctx: vscode.ExtensionContext, arg: unknown): 
     newLabel: b,
     getOld: () => showFile(t.root, a, t.relPath),
     getNew: () => showFile(t.root, b, t.relPath),
+    storeKey: `pairs:${t.root}:${t.relPath}:${a}..${b}`,
   });
 }
 

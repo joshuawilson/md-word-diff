@@ -37,6 +37,7 @@ In the panel:
 | **Hide unchanged** | Fold runs of unchanged blocks |
 | **Pair with…** (hover a deleted, moved or modified block) | Pick the new block it became; the two are compared word by word. Use it when a paragraph was reworded so much that automatic matching can't tell. **Unpair** undoes it. |
 | **Unpair** (hover an automatically paired or moved block) | The two blocks don't belong together: show them as deleted + inserted and keep them out of automatic matching. **Clear** in the toolbar resets manual pairs and unpairs. |
+| Saved pairs | Manual pairs and unpairs are saved per file and revision (VSCode workspace storage). They come back when you reopen the diff and follow your edits to the working copy: a paired block is found by its text, or by the most similar block if you edited it. A pair that can't be found any more shows as "N saved pairs not found" (it returns if the text does); **Clear** forgets them. |
 
 Marks: <ins>green</ins> = added, followed by <del>red strikethrough</del> = removed (new text always comes first), dotted amber
 underline = formatting-only change (hover to see what it was, e.g. `was: plain`,

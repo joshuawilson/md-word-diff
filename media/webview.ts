@@ -20,6 +20,8 @@ interface RenderMsg {
   ignoreWrap: boolean;
   manualPairs: number;
   unpairs: number;
+  /** Saved pairs that could not be found in the current text. */
+  lost?: number;
 }
 
 declare function acquireVsCodeApi(): VsApi;
@@ -122,10 +124,11 @@ window.addEventListener('message', (e: MessageEvent<RenderMsg>) => {
   setActive($('pairing'), 'data-p', msg.pairing);
   setActive($('grouping'), 'data-g', msg.grouping);
   $<HTMLInputElement>('ignore-wrap').checked = msg.ignoreWrap;
-  $('manual').classList.toggle('view-hidden', msg.manualPairs === 0 && msg.unpairs === 0);
+  $('manual').classList.toggle('view-hidden', msg.manualPairs === 0 && msg.unpairs === 0 && !msg.lost);
   const parts: string[] = [];
   if (msg.manualPairs) parts.push(`${msg.manualPairs} manual pair${msg.manualPairs === 1 ? '' : 's'}`);
   if (msg.unpairs) parts.push(`${msg.unpairs} unpaired`);
+  if (msg.lost) parts.push(`${msg.lost} saved pair${msg.lost === 1 ? '' : 's'} not found`);
   $('manual-count').textContent = parts.join(' · ');
   cancelPick();
   applyHide(views.rendered);

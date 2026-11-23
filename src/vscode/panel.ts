@@ -1,5 +1,8 @@
 import * as vscode from 'vscode';
+import { refOf, resolvePairs, type BlockRef, type SavedPair } from '../engine/anchors';
 import { diffMarkdown } from '../engine/diff';
+import { parseBlocks } from '../engine/parse';
+import type { Block } from '../engine/types';
 import { renderRaw } from '../render/raw';
 import { renderRendered } from '../render/rendered';
 import type { Grouping } from '../engine/group';
@@ -15,7 +18,16 @@ export interface PanelSource {
   getNew(): string | Promise<string>;
   /** When set, re-diff as this document changes. */
   liveDoc?: vscode.TextDocument;
+  /** Workspace-state key under which manual pairs and unpairs are saved for this comparison. */
+  storeKey?: string;
 }
+
+interface Stored {
+  forced: SavedPair[];
+  unpaired: SavedPair[];
+}
+
+const sameRef = (a: BlockRef, b: BlockRef) => a.text === b.text && a.nth === b.nth;
 
 const LOOSE = 0.2;
 const STRICT = 0.6;
@@ -56,7 +68,7 @@ function shellHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
   <button id="next" title="Next change (Alt+↓)">▼ Next</button>
   <label title="Treat wrapped lines inside a paragraph as spaces (deliberate line breaks are kept)"><input type="checkbox" id="ignore-wrap"> Ignore line wrap</label>
   <label><input type="checkbox" id="hide"> Hide unchanged</label>
-  <span id="manual" class="view-hidden"><span id="manual-count"></span> <button id="clear-pairs" title="Remove all manual pairs and unpairs">Clear</button></span>
+  <span id="manual" class="view-hidden"><span id="manual-count"></span> <button id="clear-pairs" title="Remove all manual pairs and unpairs saved for this file and revision">Clear</button></span>
 </div>
 <div id="pick-banner" class="view-hidden">Click the new block to compare with the selected old block · <button id="pick-cancel">Cancel (Esc)</button></div>
 <div id="doc"><div id="rendered"></div><div id="raw" class="view-hidden"></div></div>
@@ -79,10 +91,23 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
   let ignoreWrap = vscode.workspace.getConfiguration('mdWordDiff').get<boolean>('ignoreLineWrap', false);
   let oldText: string | undefined;
   let ready = false;
-  /** Manual pairs [old block index, new block index], kept for the life of the panel. */
-  let forced: [number, number][] = [];
-  /** Automatic pairs the user broke apart, [old block index, new block index]. */
-  let unpaired: [number, number][] = [];
+  // Manual pairs and broken-apart automatic pairs, saved by block text so they survive edits,
+  // closing the panel and reloading VSCode.
+  const stored = (src.storeKey && ctx.workspaceState.get<Stored>(src.storeKey)) || { forced: [], unpaired: [] };
+  let savedForced: SavedPair[] = stored.forced ?? [];
+  let savedUnpaired: SavedPair[] = stored.unpaired ?? [];
+  let lastOld: Block[] = [];
+  let lastNew: Block[] = [];
+  let persisted = JSON.stringify({ forced: savedForced, unpaired: savedUnpaired });
+  const persist = () => {
+    const now = JSON.stringify({ forced: savedForced, unpaired: savedUnpaired });
+    if (!src.storeKey || now === persisted) return;
+    persisted = now;
+    const empty = !savedForced.length && !savedUnpaired.length;
+    void ctx.workspaceState.update(src.storeKey, empty ? undefined : { forced: savedForced, unpaired: savedUnpaired });
+  };
+  const pairOf = (oi: number, ni: number): SavedPair | undefined =>
+    lastOld[oi] && lastNew[ni] ? { old: refOf(lastOld, oi), new: refOf(lastNew, ni) } : undefined;
   const disposables: vscode.Disposable[] = [];
 
   const render = async () => {
@@ -90,7 +115,20 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
     try {
       oldText ??= await src.getOld();
       const newText = await src.getNew();
-      const result = diffMarkdown(oldText, newText, { threshold: thresholdFor(pairing), grouping, forced, unpaired, ignoreWrap });
+      lastOld = parseBlocks(oldText, { ignoreWrap });
+      lastNew = parseBlocks(newText, { ignoreWrap });
+      const rf = resolvePairs(savedForced, lastOld, lastNew);
+      const ru = resolvePairs(savedUnpaired, lastOld, lastNew);
+      savedForced = rf.saved;
+      savedUnpaired = ru.saved;
+      persist();
+      const result = diffMarkdown(oldText, newText, {
+        threshold: thresholdFor(pairing),
+        grouping,
+        forced: rf.pairs,
+        unpaired: ru.pairs,
+        ignoreWrap,
+      });
       void panel.webview.postMessage({
         type: 'render',
         rendered: renderRendered(result),
@@ -101,7 +139,8 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
         grouping,
         ignoreWrap,
         manualPairs: result.blocks.filter(b => b.forced).length,
-        unpairs: unpaired.length,
+        unpairs: ru.pairs.length,
+        lost: rf.lost + ru.lost,
       });
     } catch (err) {
       void vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
@@ -121,21 +160,26 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
         grouping = msg.value;
         void render();
       } else if (msg.type === 'forcePair' && Number.isInteger(msg.oi) && Number.isInteger(msg.ni)) {
-        forced = forced.filter(([i, j]) => i !== msg.oi && j !== msg.ni);
-        forced.push([msg.oi!, msg.ni!]);
+        const p = pairOf(msg.oi!, msg.ni!);
+        if (!p) return;
+        savedForced = savedForced.filter(s => !sameRef(s.old, p.old) && !sameRef(s.new, p.new));
+        savedForced.push(p);
         void render();
-      } else if (msg.type === 'unpair' && Number.isInteger(msg.oi)) {
-        forced = forced.filter(([i]) => i !== msg.oi);
+      } else if (msg.type === 'unpair' && Number.isInteger(msg.oi) && lastOld[msg.oi!]) {
+        const ref = refOf(lastOld, msg.oi!);
+        savedForced = savedForced.filter(s => !sameRef(s.old, ref));
         void render();
       } else if (msg.type === 'ignoreWrap' && typeof msg.value === 'boolean') {
         ignoreWrap = msg.value;
         void render();
       } else if (msg.type === 'split' && Number.isInteger(msg.oi) && Number.isInteger(msg.ni)) {
-        unpaired.push([msg.oi!, msg.ni!]);
+        const p = pairOf(msg.oi!, msg.ni!);
+        if (!p) return;
+        savedUnpaired.push(p);
         void render();
       } else if (msg.type === 'clearPairs') {
-        forced = [];
-        unpaired = [];
+        savedForced = [];
+        savedUnpaired = [];
         void render();
       }
     }),

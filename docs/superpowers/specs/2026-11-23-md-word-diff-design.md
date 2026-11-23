@@ -288,3 +288,7 @@ the toolbar **Clear** resets manual pairs and unpairs together.
 ### Addendum (6): moved stubs keep their text
 
 The stub left at a moved block's old position shows the old block's full text struck through (as a deleted block would), under the "moved above/below" link. This lets the user read it and use **Pair with…** on it. Its words are not counted in the stats again.
+
+### Addendum (7): saved pairs
+
+Manual pairs and unpairs are stored in `workspaceState` under `pairs:<root>:<relPath>:<rev>` (or `<a>..<b>` for two revisions), as block references by text plus occurrence number, not by index (`src/engine/anchors.ts`). On every render they are resolved: old side by exact text; new side by exact text first, then the most similar unused block of the same pair group with Dice ≥ 0.5 against the last saved text. Found pairs are re-saved with the current text, so a chain of edits stays attached. Pairs that cannot be found are kept in storage (so undo brings them back) and counted in the toolbar as "N saved pairs not found"; Clear removes everything for that comparison.
