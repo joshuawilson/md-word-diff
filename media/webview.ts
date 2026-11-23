@@ -41,33 +41,45 @@ function applyView(): void {
   current = -1;
 }
 
-/** Collapse runs of >= 2 consecutive unchanged blocks into a clickable row. */
+/**
+ * Collapse runs of >= 2 consecutive unchanged siblings into a clickable row. Works at every
+ * nesting level: a top-level list or quote with no changes collapses as a unit; inside one that
+ * has changes, runs of unchanged items (<li>) or blocks collapse at that level.
+ */
 function applyHide(root: HTMLElement): void {
   root.querySelectorAll('.collapsed-run').forEach(el => el.remove());
-  root.querySelectorAll<HTMLElement>('.blk.unchanged').forEach(el => (el.style.display = ''));
-  if (!state.hideUnchanged) return;
-  const blocks = Array.from(root.querySelectorAll<HTMLElement>('.blk'));
+  root.querySelectorAll('.run-hidden').forEach(el => el.classList.remove('run-hidden'));
+  if (state.hideUnchanged) collapseIn(root);
+}
+
+const blockCount = (el: Element) => (el.matches('.blk') ? 1 : el.querySelectorAll('.blk').length);
+const hasChange = (el: Element) => el.matches('.chg') || el.querySelector('.chg') !== null;
+
+function collapseIn(parent: Element): void {
   let run: HTMLElement[] = [];
   const flush = () => {
     if (run.length >= 2) {
       const members = run;
-      members.forEach(el => (el.style.display = 'none'));
-      const row = document.createElement('div');
+      const n = members.reduce((sum, el) => sum + blockCount(el), 0);
+      members.forEach(el => el.classList.add('run-hidden'));
+      const row = document.createElement(parent.tagName === 'UL' || parent.tagName === 'OL' ? 'li' : 'div');
       row.className = 'collapsed-run';
-      row.textContent = `… ${members.length} unchanged blocks …`;
+      row.textContent = `… ${n} unchanged block${n === 1 ? '' : 's'} …`;
       row.addEventListener('click', () => {
-        members.forEach(el => (el.style.display = ''));
+        members.forEach(el => el.classList.remove('run-hidden'));
         row.remove();
       });
-      members[0].parentNode!.insertBefore(row, members[0]);
+      parent.insertBefore(row, members[0]);
     }
     run = [];
   };
-  for (const b of blocks) {
-    if (b.classList.contains('unchanged') && (run.length === 0 || run[run.length - 1].parentNode === b.parentNode)) run.push(b);
-    else {
+  for (const child of Array.from(parent.children) as HTMLElement[]) {
+    if (blockCount(child) === 0) continue;
+    if (!hasChange(child)) {
+      run.push(child);
+    } else {
       flush();
-      if (b.classList.contains('unchanged')) run.push(b);
+      if (!child.matches('.blk')) collapseIn(child);
     }
   }
   flush();

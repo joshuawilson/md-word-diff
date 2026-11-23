@@ -1,4 +1,4 @@
-import { diffLines } from 'diff';
+import { lcsRuns } from './lcs';
 import { align } from './align';
 import { tokensSig } from './inline';
 import { diffInline, diffRaw, type InlineSeg, type RawSeg } from './inlineDiff';
@@ -19,12 +19,6 @@ export function tokensAs(tokens: InlineToken[], op: InlineSeg['op']): InlineSeg[
   return diffInline(op === 'delete' ? tokens : [], op === 'insert' ? tokens : []);
 }
 
-function splitLines(v: string): string[] {
-  const lines = v.split('\n');
-  if (lines.length > 1 && lines[lines.length - 1] === '') lines.pop();
-  return lines;
-}
-
 /** Line diff; adjacent delete/insert runs are paired index-by-index into word-diffed modified lines. */
 export function diffCode(a: string, b: string): CodeLine[] {
   const out: CodeLine[] = [];
@@ -41,14 +35,22 @@ export function diffCode(a: string, b: string): CodeLine[] {
     dels = [];
     inss = [];
   };
-  const withNl = (s: string) => (s === '' ? '' : s.endsWith('\n') ? s : s + '\n');
-  for (const ch of diffLines(withNl(a), withNl(b))) {
-    const lines = splitLines(ch.value);
-    if (ch.removed) dels.push(...lines);
-    else if (ch.added) inss.push(...lines);
-    else {
+  const la = a === '' ? [] : a.split('\n');
+  const lb = b === '' ? [] : b.split('\n');
+  let i = 0;
+  let j = 0;
+  for (const ch of lcsRuns(la, lb)) {
+    if (ch.kind === 'removed') {
+      dels.push(...la.slice(i, i + ch.count));
+      i += ch.count;
+    } else if (ch.kind === 'added') {
+      inss.push(...lb.slice(j, j + ch.count));
+      j += ch.count;
+    } else {
       flush();
-      for (const l of lines) out.push({ op: 'equal', segs: [{ op: 'equal', text: l }] });
+      for (const l of lb.slice(j, j + ch.count)) out.push({ op: 'equal', segs: [{ op: 'equal', text: l }] });
+      i += ch.count;
+      j += ch.count;
     }
   }
   flush();

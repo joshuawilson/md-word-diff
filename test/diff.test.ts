@@ -85,3 +85,41 @@ test('task checkbox toggle is a change', () => {
   const r = diffMarkdown('- [ ] ship it', '- [x] ship it', T);
   expect(r.blocks[0]).toMatchObject({ status: 'modified', markers: ['checked'] });
 });
+
+test('code language change has a marker', () => {
+  expect(diffMarkdown('```js\nx\n```', '```ts\nx\n```', T).blocks[0].markers).toEqual(['language js → ts']);
+});
+
+test('quote depth change has a marker', () => {
+  expect(diffMarkdown('> a b c', '> > a b c', T).blocks[0].markers).toEqual(['quote depth 1 → 2']);
+});
+
+test('list type change has a marker', () => {
+  expect(diffMarkdown('- a b c', '1. a b c', T).blocks[0].markers).toEqual(['became numbered list']);
+  expect(diffMarkdown('1. a b c', '- a b c', T).blocks[0].markers).toEqual(['became bullet list']);
+});
+
+test('perf: fully rewritten 2000-line code block under 1s', () => {
+  const a = Array.from({ length: 2000 }, (_, i) => `const a${i} = compute(${i});`).join('\n');
+  const b = Array.from({ length: 2000 }, (_, i) => `let b${i} = other(${i * 3});`).join('\n');
+  const t = performance.now();
+  const r = diffMarkdown('```js\n' + a + '\n```', '```js\n' + b + '\n```', T);
+  expect(performance.now() - t).toBeLessThan(1000);
+  expect(r.blocks.length).toBeGreaterThan(0);
+});
+
+test('perf: 30k-word paragraph with a third replaced under 1s', () => {
+  const words = Array.from({ length: 30000 }, (_, i) => `w${i % 997}x${Math.floor(i / 997)}`);
+  const b = words.map((w, i) => (i % 3 === 0 ? `z${i}` : w));
+  const t = performance.now();
+  const r = diffMarkdown(words.join(' '), b.join(' '), { threshold: 0.2 });
+  expect(performance.now() - t).toBeLessThan(1000);
+  expect(r.blocks.length).toBeGreaterThan(0);
+});
+
+test('perf: 3000-row table all edited under 1s', () => {
+  const rows = (tag: string) => Array.from({ length: 3000 }, (_, i) => `| r${i} | ${tag}${i} |`).join('\n');
+  const t = performance.now();
+  diffMarkdown('| k | v |\n|---|---|\n' + rows('a'), '| k | v |\n|---|---|\n' + rows('b'), T);
+  expect(performance.now() - t).toBeLessThan(1000);
+});

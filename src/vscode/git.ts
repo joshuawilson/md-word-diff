@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
-import { dirname } from 'node:path';
+import { realpath } from 'node:fs/promises';
+import { dirname, relative, sep } from 'node:path';
 
 export class GitError extends Error {}
 
@@ -20,7 +21,8 @@ function git(cwd: string, args: string[]): Promise<string> {
 }
 
 function checkRev(rev: string): void {
-  if (!rev || rev.startsWith('-') || /\s/.test(rev)) throw new GitError(`Unknown revision: ${rev}`);
+  // execFile uses no shell, so only option-like revisions are dangerous.
+  if (!rev.trim() || rev.startsWith('-')) throw new GitError(`Unknown revision: ${rev}`);
 }
 
 export async function repoRoot(filePath: string): Promise<string> {
@@ -29,6 +31,25 @@ export async function repoRoot(filePath: string): Promise<string> {
   } catch {
     throw new GitError(`Not in a git repository: ${filePath}`);
   }
+}
+
+/**
+ * Repo root and posix-style repo-relative path for a file. Symlinks are resolved first,
+ * because git reports the real path of the repository root.
+ */
+export async function locate(filePath: string): Promise<{ root: string; relPath: string }> {
+  let real = filePath;
+  try {
+    real = await realpath(filePath);
+  } catch {
+    try {
+      real = `${await realpath(dirname(filePath))}${sep}${filePath.split(sep).pop()}`;
+    } catch {
+      // keep the path as given; repoRoot reports the error
+    }
+  }
+  const root = await repoRoot(real);
+  return { root, relPath: relative(root, real).split(sep).join('/') };
 }
 
 /** Resolve a revision expression to a full commit hash. */

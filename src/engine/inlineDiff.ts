@@ -1,4 +1,4 @@
-import { diffArrays } from 'diff';
+import { lcsRuns } from './lcs';
 import { fmtSig } from './inline';
 import type { Format, InlineToken } from './types';
 
@@ -35,12 +35,12 @@ export function diffInline(a: InlineToken[], b: InlineToken[]): InlineSeg[] {
   const out: InlineSeg[] = [];
   let ia = 0;
   let ib = 0;
-  for (const ch of diffArrays(a, b, { comparator: (x, y) => x.text === y.text })) {
-    const n = ch.count ?? ch.value.length;
-    if (ch.removed) {
+  for (const ch of lcsRuns(a.map(t => t.text), b.map(t => t.text))) {
+    const n = ch.count;
+    if (ch.kind === 'removed') {
       for (let k = 0; k < n; k++) pushSeg(out, { op: 'delete', text: a[ia + k].text, fmt: a[ia + k].fmt });
       ia += n;
-    } else if (ch.added) {
+    } else if (ch.kind === 'added') {
       for (let k = 0; k < n; k++) pushSeg(out, { op: 'insert', text: b[ib + k].text, fmt: b[ib + k].fmt });
       ib += n;
     } else {
@@ -94,12 +94,13 @@ export function diffRaw(a: string, b: string, opts: { exactWhitespace?: boolean 
   const out: RawSeg[] = [];
   let ia = 0;
   let ib = 0;
-  for (const ch of diffArrays(ta, tb, { comparator: (x, y) => x === y || (!opts.exactWhitespace && isSpace(x) && isSpace(y)) })) {
-    const n = ch.count ?? ch.value.length;
-    if (ch.removed) {
+  const key = (t: string) => (!opts.exactWhitespace && isSpace(t) ? ' ' : t);
+  for (const ch of lcsRuns(ta.map(key), tb.map(key))) {
+    const n = ch.count;
+    if (ch.kind === 'removed') {
       for (let k = 0; k < n; k++) pushRaw(out, 'delete', ta[ia + k]);
       ia += n;
-    } else if (ch.added) {
+    } else if (ch.kind === 'added') {
       for (let k = 0; k < n; k++) pushRaw(out, 'insert', tb[ib + k]);
       ib += n;
     } else {

@@ -40,7 +40,8 @@ function blockWords(b: Block): string[] {
 }
 
 const inList = (cs: Container[]) => cs.filter(c => c.kind === 'list').length;
-const inQuote = (cs: Container[]) => cs.some(c => c.kind === 'quote');
+const quoteDepth = (cs: Container[]) => cs.filter(c => c.kind === 'quote').length;
+const innerList = (cs: Container[]) => [...cs].reverse().find(c => c.kind === 'list') as Extract<Container, { kind: 'list' }> | undefined;
 
 function markersFor(a: Block, b: Block): string[] {
   const m: string[] = [];
@@ -52,10 +53,15 @@ function markersFor(a: Block, b: Block): string[] {
   if (!la && lb) m.push('became list item');
   else if (la && !lb) m.push('was list item');
   else if (la !== lb) m.push(`list depth ${la} → ${lb}`);
-  const qa = inQuote(a.containers);
-  const qb = inQuote(b.containers);
+  const qa = quoteDepth(a.containers);
+  const qb = quoteDepth(b.containers);
   if (!qa && qb) m.push('became quote');
-  if (qa && !qb) m.push('was quote');
+  else if (qa && !qb) m.push('was quote');
+  else if (qa !== qb) m.push(`quote depth ${qa} → ${qb}`);
+  const oa = innerList(a.containers);
+  const ob = innerList(b.containers);
+  if (oa && ob && oa.ordered !== ob.ordered) m.push(ob.ordered ? 'became numbered list' : 'became bullet list');
+  if (isCode(a) && isCode(b) && (a.lang ?? '') !== (b.lang ?? '')) m.push(`language ${a.lang || 'none'} → ${b.lang || 'none'}`);
   if (b.checked !== null && a.checked !== b.checked) m.push(b.checked ? 'checked' : 'unchecked');
   return m;
 }

@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import { readFile } from 'node:fs/promises';
 import * as vscode from 'vscode';
-import { repoRoot, showFile } from './git';
+import { locate, showFile } from './git';
 import { openDiffPanel } from './panel';
 import { pickRevision } from './picker';
 
@@ -25,8 +25,7 @@ async function resolveTarget(arg: unknown): Promise<Target | undefined> {
     }
   }
   try {
-    const root = await repoRoot(uri.fsPath);
-    const relPath = path.relative(root, uri.fsPath).split(path.sep).join('/');
+    const { root, relPath } = await locate(uri.fsPath);
     return { uri, root, relPath };
   } catch (err) {
     void vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));

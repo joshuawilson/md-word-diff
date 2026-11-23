@@ -50,3 +50,5 @@ a { color: var(--vscode-textLink-foreground); }
 #label { font-weight: 600; }
 #stats { color: var(--muted); }
 .view-hidden { display: none; }
+.run-hidden { display: none !important; }
+li.collapsed-run { list-style: none; }

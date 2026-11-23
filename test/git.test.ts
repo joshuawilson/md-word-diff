@@ -1,9 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, realpathSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, realpathSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeAll, expect, test } from 'vitest';
-import { listRefs, repoRoot, showFile, verifyRev } from '../src/vscode/git';
+import { listRefs, locate, repoRoot, showFile, verifyRev } from '../src/vscode/git';
 
 let root: string;
 const git = (...args: string[]) => execFileSync('git', args, { cwd: root, stdio: 'pipe' }).toString();
@@ -52,4 +52,20 @@ test('listRefs', async () => {
   const commits = refs.filter(r => r.kind === 'commit');
   expect(commits.length).toBe(2);
   expect(commits[0].description).toMatch(/^\d{4}-\d{2}-\d{2} two$/);
+});
+
+test('locate resolves a file opened through a symlinked directory', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'mdwd-link-'));
+  symlinkSync(root, join(dir, 'link'));
+  const loc = await locate(join(dir, 'link', 'docs', 'a.md'));
+  expect(loc).toEqual({ root, relPath: 'docs/a.md' });
+  expect(await showFile(loc.root, 'v1', loc.relPath)).toBe('first\n');
+});
+
+test('verifyRev accepts revisions containing spaces', async () => {
+  expect(await verifyRev(root, 'HEAD@{10 years ago}')).toMatch(/^[0-9a-f]{40}$/);
+});
+
+test('verifyRev rejects option-like revisions', async () => {
+  await expect(verifyRev(root, '--output=/tmp/x')).rejects.toThrow('Unknown revision: --output=/tmp/x');
 });
