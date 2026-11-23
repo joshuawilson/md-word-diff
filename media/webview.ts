@@ -17,6 +17,7 @@ interface RenderMsg {
   label: string;
   pairing: 'loose' | 'normal' | 'strict';
   grouping: 'off' | '1' | '2';
+  ignoreWrap: boolean;
   manualPairs: number;
 }
 
@@ -119,6 +120,7 @@ window.addEventListener('message', (e: MessageEvent<RenderMsg>) => {
   $('stats').textContent = `${s.changes} change${s.changes === 1 ? '' : 's'} · +${s.wordsAdded} / −${s.wordsRemoved} words`;
   setActive($('pairing'), 'data-p', msg.pairing);
   setActive($('grouping'), 'data-g', msg.grouping);
+  $<HTMLInputElement>('ignore-wrap').checked = msg.ignoreWrap;
   $('manual').classList.toggle('view-hidden', msg.manualPairs === 0);
   $('manual-count').textContent = `${msg.manualPairs} manual pair${msg.manualPairs === 1 ? '' : 's'}`;
   cancelPick();
@@ -219,6 +221,9 @@ document.addEventListener(
   },
   true,
 );
+$<HTMLInputElement>('ignore-wrap').addEventListener('change', e => {
+  vscode.postMessage({ type: 'ignoreWrap', value: (e.target as HTMLInputElement).checked });
+});
 $('clear-pairs').addEventListener('click', () => vscode.postMessage({ type: 'clearPairs' }));
 
 document.addEventListener('keydown', e => {

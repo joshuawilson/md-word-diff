@@ -11,8 +11,12 @@ test('edited paragraph is modified, not replaced', () => {
   expect(r.stats).toEqual({ changes: 1, wordsAdded: 2, wordsRemoved: 2 });
 });
 
-test('rewrapped paragraph unchanged', () => {
-  expect(st(diffMarkdown('a b c\nd e', 'a b\nc d e', T))).toEqual(['unchanged']);
+test('rewrapped paragraph unchanged when ignoring line wrap', () => {
+  expect(st(diffMarkdown('a b c\nd e', 'a b\nc d e', { ...T, ignoreWrap: true }))).toEqual(['unchanged']);
+});
+
+test('rewrapped paragraph is modified by default', () => {
+  expect(st(diffMarkdown('a b c\nd e', 'a b\nc d e', T))).toEqual(['modified']);
 });
 
 test('inserted and deleted paragraphs', () => {
@@ -140,4 +144,20 @@ test('long identical blocks still anchor', () => {
   const long = 'This unchanged paragraph has plenty of words so it anchors the alignment firmly.';
   const r = diffMarkdown(`${long}\n\none two three four`, `${long}\n\none two three five`, T);
   expect(r.blocks.map(b => b.status)).toEqual(['unchanged', 'modified']);
+});
+
+test('manual pair: code block with a text block compares as plain text lines', () => {
+  const old = '```\nTicket: PROJ-1\nRequested: webhooks\nScope: team\n```';
+  const neu = 'Ticket: PROJ-1\\\nRequested: "We need webhooks."\\\nScope: full-team';
+  const r = diffMarkdown(old, neu, { ...T, grouping: 'off', forced: [[0, 0]] });
+  const b = r.blocks.find(x => x.forced)!;
+  expect(b.status).toBe('modified');
+  const segs = b.inline!;
+  expect(segs.filter(x => x.op === 'equal').map(x => x.text).join('')).toContain('Ticket: PROJ-1\nRequested: ');
+  expect(segs.some(x => x.op === 'insert' && x.text.includes('full'))).toBe(true);
+});
+
+test('manual pair: text with a table is still ignored', () => {
+  const r = diffMarkdown('some text here', '| a |\n|---|\n| b |', { ...T, forced: [[0, 0]] });
+  expect(r.blocks.some(x => x.forced)).toBe(false);
 });

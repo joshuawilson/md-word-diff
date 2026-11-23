@@ -85,16 +85,19 @@ function pushRaw(out: RawSeg[], op: RawSeg['op'], text: string): void {
 }
 
 /**
- * Source-text token diff. By default whitespace runs (incl. line breaks) compare equal to each other;
- * exactWhitespace (code) compares them exactly.
+ * Source-text token diff. Whitespace runs compare as a space, or as a line break when they contain
+ * one (unless ignoreWrap); exactWhitespace (code) compares them exactly.
  */
-export function diffRaw(a: string, b: string, opts: { exactWhitespace?: boolean } = {}): RawSeg[] {
+export function diffRaw(a: string, b: string, opts: { exactWhitespace?: boolean; ignoreWrap?: boolean } = {}): RawSeg[] {
   const ta = rawTokens(a);
   const tb = rawTokens(b);
   const out: RawSeg[] = [];
   let ia = 0;
   let ib = 0;
-  const key = (t: string) => (!opts.exactWhitespace && isSpace(t) ? ' ' : t);
+  const key = (t: string) => {
+    if (opts.exactWhitespace || !isSpace(t)) return t;
+    return !opts.ignoreWrap && t.includes('\n') ? '\n' : ' ';
+  };
   for (const ch of lcsRuns(ta.map(key), tb.map(key))) {
     const n = ch.count;
     if (ch.kind === 'removed') {

@@ -1,12 +1,12 @@
 import { align, type AlignOp } from './align';
 import { alignWithMoves, type MoveOp } from './moves';
 import { diffCode, diffTable, tokensAs, type CodeLine, type RowDiff } from './blockDiff';
-import { IS_WORD } from './inline';
+import { IS_WORD, textTokens } from './inline';
 import { diffInline, diffRaw, type InlineSeg, type RawSeg } from './inlineDiff';
 import { parseBlocks } from './parse';
 import { bagSimilarity, wordBag } from './similarity';
 import { gapWordsFor, groupSegs, type Grouping } from './group';
-import type { Block, Container } from './types';
+import type { Block, Container, InlineToken } from './types';
 
 export type { CodeLine, RowDiff, CellDiff } from './blockDiff';
 
@@ -72,6 +72,8 @@ function markersFor(a: Block, b: Block): string[] {
   const ob = innerList(b.containers);
   if (oa && ob && oa.ordered !== ob.ordered) m.push(ob.ordered ? 'became numbered list' : 'became bullet list');
   if (isCode(a) && isCode(b) && (a.lang ?? '') !== (b.lang ?? '')) m.push(`language ${a.lang || 'none'} → ${b.lang || 'none'}`);
+  if (isCode(a) && !isCode(b)) m.push('was code block');
+  if (!isCode(a) && isCode(b)) m.push('became code block');
   if (b.checked !== null && a.checked !== b.checked) m.push(b.checked ? 'checked' : 'unchecked');
   return m;
 }
@@ -106,7 +108,7 @@ function tally(b: DiffBlock, stats: DiffResult['stats']): void {
   else for (const s of b.raw) add(s.op, s.text);
 }
 
-function fromOp(op: AlignOp<Block>, id: number, threshold: number): DiffBlock {
+function fromOp(op: AlignOp<Block>, id: number, opts: DiffOptions): DiffBlock {
   switch (op.op) {
     case 'equal':
       return { id, status: 'unchanged', block: op.b, old: op.a, markers: [], ...whole(op.b, 'equal') } as DiffBlock;
@@ -115,7 +117,7 @@ function fromOp(op: AlignOp<Block>, id: number, threshold: number): DiffBlock {
     case 'delete':
       return { id, status: 'deleted', block: op.a, markers: [], ...whole(op.a, 'delete') } as DiffBlock;
     case 'pair':
-      return pairBlock(id, op.a, op.b, threshold);
+      return pairBlock(id, op.a, op.b, opts);
   }
 }
 
@@ -129,7 +131,7 @@ function movedStub(id: number, block: Block, fromAbove: boolean, movedTo: number
   return { id, status: 'movedAway', block, raw: [], markers: [fromAbove ? '↓ moved below' : '↑ moved above'], movedTo };
 }
 
-function fromMoveOps(ops: MoveOp<Block>[], threshold: number): DiffBlock[] {
+function fromMoveOps(ops: MoveOp<Block>[], opts: DiffOptions): DiffBlock[] {
   const toId = new Map<number, number>();
   const fromId = new Map<number, number>();
   ops.forEach((op, id) => {
@@ -139,32 +141,54 @@ function fromMoveOps(ops: MoveOp<Block>[], threshold: number): DiffBlock[] {
   return ops.map((op, id): DiffBlock => {
     if (op.op === 'moveTo') {
       const src = fromId.get(op.link)!;
-      const d = pairBlock(id, op.a, op.b, threshold);
+      const d = pairBlock(id, op.a, op.b, opts);
       d.markers.unshift(src < id ? 'moved from above' : 'moved from below');
       d.movedFrom = src;
       if (op.forced) markForced(d);
       return d;
     }
-    if (op.op === 'pair' && op.forced) return markForced(pairBlock(id, op.a, op.b, threshold));
+    if (op.op === 'pair' && op.forced) return markForced(pairBlock(id, op.a, op.b, opts));
     if (op.op === 'moveFrom') {
       const dst = toId.get(op.link)!;
       return movedStub(id, op.a, id < dst, dst);
     }
-    return fromOp(op, id, threshold);
+    return fromOp(op, id, opts);
   });
 }
 
-function pairBlock(id: number, x: Block, y: Block, threshold: number): DiffBlock {
+function pairBlock(id: number, x: Block, y: Block, opts: DiffOptions): DiffBlock {
   const d: DiffBlock = { id, status: 'modified', block: y, old: x, markers: markersFor(x, y), raw: [] };
+  if (isCode(x) !== isCode(y) && pairGroup(x.kind) === pairGroup(y.kind)) {
+    // Code paired with text (manual pairing): compare as plain text, line by line.
+    d.raw = diffRaw(x.source, y.source, { ignoreWrap: opts.ignoreWrap });
+    if (isCode(y)) d.code = diffCode(plainText(x), y.code ?? '');
+    else d.inline = diffInline(asTokens(x), y.inline ?? []);
+    return d;
+  }
   if (isCode(y)) {
     d.code = diffCode(x.code ?? '', y.code ?? '');
     d.raw = diffRaw(x.source, y.source, { exactWhitespace: true });
   } else {
-    d.raw = diffRaw(x.source, y.source);
-    if (y.rows) d.table = diffTable(x.rows ?? [], y.rows, threshold);
+    d.raw = diffRaw(x.source, y.source, { ignoreWrap: opts.ignoreWrap });
+    if (y.rows) d.table = diffTable(x.rows ?? [], y.rows, opts.threshold);
     if (y.inline) d.inline = diffInline(x.inline ?? [], y.inline);
   }
   return d;
+}
+
+/** Block as text tokens: its inline tokens, or a code block's contents. */
+function asTokens(b: Block): InlineToken[] {
+  return b.inline ?? textTokens(b.code ?? b.source);
+}
+
+function plainText(b: Block): string {
+  return b.inline ? b.inline.map(t => t.text).join('') : (b.code ?? b.source);
+}
+
+/** Which blocks may be paired by hand: text and code with each other, tables with tables. */
+export function pairGroup(kind: string): string {
+  if (kind === 'paragraph' || kind === 'heading' || kind === 'code' || kind === 'frontmatter' || kind === 'html') return 'flow';
+  return kind;
 }
 
 /** Above this many deleted × inserted candidates the move pass is skipped (keeps big rewrites fast). */
@@ -176,7 +200,7 @@ const MOVE_PAIR_LIMIT = 2_000_000;
  * words first. The inserted block becomes a modified block labelled as moved; the deleted
  * block becomes a stub pointing at it.
  */
-function detectMoves(blocks: DiffBlock[], threshold: number): void {
+function detectMoves(blocks: DiffBlock[], opts: DiffOptions): void {
   const dels = blocks.filter(b => b.status === 'deleted');
   const inss = blocks.filter(b => b.status === 'inserted');
   if (!dels.length || !inss.length || dels.length * inss.length > MOVE_PAIR_LIMIT) return;
@@ -190,7 +214,7 @@ function detectMoves(blocks: DiffBlock[], threshold: number): void {
       else {
         if (!compatible(d.block, ins.block)) return;
         const sim = bagSimilarity(bagD[x], bagI[y]);
-        if (sim < threshold) return;
+        if (sim < opts.threshold) return;
         score = (sim * (bagD[x].length + bagI[y].length)) / 2;
       }
       cands.push({ d: x, i: y, score });
@@ -206,7 +230,7 @@ function detectMoves(blocks: DiffBlock[], threshold: number): void {
     usedI.add(c.i);
     const stub = dels[c.d];
     const ins = inss[c.i];
-    const moved = pairBlock(ins.id, stub.block, ins.block, threshold);
+    const moved = pairBlock(ins.id, stub.block, ins.block, opts);
     const fromAbove = pos.get(stub.id)! < pos.get(ins.id)!;
     moved.markers.unshift(fromAbove ? 'moved from above' : 'moved from below');
     moved.movedFrom = stub.id;
@@ -219,24 +243,26 @@ function detectMoves(blocks: DiffBlock[], threshold: number): void {
 export interface DiffOptions {
   threshold: number;
   grouping?: Grouping;
+  /** Treat soft-wrapped lines inside paragraphs as spaces (default: keep line breaks). */
+  ignoreWrap?: boolean;
   /** Manual pairs as [old block index, new block index]; invalid or incompatible ones are ignored. */
   forced?: [number, number][];
 }
 
 export function diffMarkdown(oldMd: string, newMd: string, opts: DiffOptions): DiffResult {
-  const a = parseBlocks(oldMd);
-  const b = parseBlocks(newMd);
+  const a = parseBlocks(oldMd, { ignoreWrap: opts.ignoreWrap });
+  const b = parseBlocks(newMd, { ignoreWrap: opts.ignoreWrap });
   const alignOpts = { key: (x: Block) => x.key, words: blockWords, compatible, threshold: opts.threshold };
   const stats = { changes: 0, wordsAdded: 0, wordsRemoved: 0 };
-  const forced = (opts.forced ?? []).filter(([i, j]) => a[i] && b[j] && compatible(a[i], b[j]));
+  const forced = (opts.forced ?? []).filter(([i, j]) => a[i] && b[j] && pairGroup(a[i].kind) === pairGroup(b[j].kind));
   const moveOps = alignWithMoves(a, b, alignOpts, MOVE_PAIR_LIMIT, forced);
   let blocks: DiffBlock[];
   if (moveOps) {
-    blocks = fromMoveOps(moveOps, opts.threshold);
+    blocks = fromMoveOps(moveOps, opts);
   } else {
     // Too many candidates for global matching: in-order alignment, then match leftovers as moves.
-    blocks = align(a, b, alignOpts).map((op, id) => fromOp(op, id, opts.threshold));
-    detectMoves(blocks, opts.threshold);
+    blocks = align(a, b, alignOpts).map((op, id) => fromOp(op, id, opts));
+    detectMoves(blocks, opts);
   }
   for (const blk of blocks) {
     if (blk.status === 'movedAway') continue;

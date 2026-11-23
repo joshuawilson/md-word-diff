@@ -1,11 +1,22 @@
 import { expect, test } from 'vitest';
 import { parseBlocks } from '../src/engine/parse';
 
-test('paragraph soft wraps collapse', () => {
-  const [b] = parseBlocks('Hello\nbig   world.');
+test('paragraph soft wraps collapse when ignoring line wrap', () => {
+  const [b] = parseBlocks('Hello\nbig   world.', { ignoreWrap: true });
   expect(b.kind).toBe('paragraph');
   expect(b.inline!.map(t => t.text).join('')).toBe('Hello big world.');
-  expect(b.key).toBe(parseBlocks('Hello big world.')[0].key);
+  expect(b.key).toBe(parseBlocks('Hello big world.', { ignoreWrap: true })[0].key);
+});
+
+test('soft line breaks are kept by default', () => {
+  const [b] = parseBlocks('Hello\nbig   world.');
+  expect(b.inline!.map(t => t.text)).toEqual(['Hello', '\n', 'big', ' ', 'world', '.']);
+  expect(b.key).not.toBe(parseBlocks('Hello big world.')[0].key);
+});
+
+test('hard line breaks are kept even when ignoring line wrap', () => {
+  const [b] = parseBlocks('one\\\ntwo  \nthree', { ignoreWrap: true });
+  expect(b.inline!.map(t => t.text)).toEqual(['one', '\n', 'two', '\n', 'three']);
 });
 
 test('tokens: words, spaces, punctuation, unicode', () => {
@@ -37,6 +48,11 @@ test('renumbering does not change key', () => {
 
 test('multi-paragraph list item: itemStart only on first', () => {
   expect(parseBlocks('- a\n\n  b').map(b => b.itemStart)).toEqual([true, false]);
+});
+
+test('list continuation line keeps its break without indentation', () => {
+  const [b] = parseBlocks('- first line\n  second line');
+  expect(b.inline!.map(t => t.text)).toEqual(['first', ' ', 'line', '\n', 'second', ' ', 'line']);
 });
 
 test('quote continuation prefixes stripped', () => {

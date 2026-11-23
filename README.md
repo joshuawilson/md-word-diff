@@ -2,7 +2,8 @@
 
 VSCode extension that compares a markdown file against a git revision and shows an
 inline, word-by-word redline — edited paragraphs show as edits, not as
-"these lines replaced those lines". Re-wrapping text is not a change.
+"these lines replaced those lines". Line breaks are kept and compared; turn on
+**Ignore line wrap** to treat re-wrapped text as unchanged.
 
 ## Install
 
@@ -32,6 +33,7 @@ In the panel:
 | **Pairing: Loose · Normal · Strict** | How readily a rewritten paragraph counts as an *edit* (word marks) vs. a whole deletion + insertion. Use **Loose** for drastic rewrites. |
 | **Grouping: Off · 1 word · 2 words** | Merge nearby word changes into one block: new text first, then the old text struck through. Off = every changed word separately. |
 | **▲ Prev / ▼ Next** (`Alt+↑` / `Alt+↓`) | Jump between changes |
+| **Ignore line wrap** | Off (default): line breaks inside paragraphs are shown and compared. On: wrapped lines count as spaces, so re-wrapping isn't a change. Deliberate breaks (trailing `\` or two spaces) are always kept. |
 | **Hide unchanged** | Fold runs of unchanged blocks |
 | **Pair with…** (hover a deleted, moved or modified block) | Pick the new block it became; the two are compared word by word. Use it when a paragraph was reworded so much that automatic matching can't tell. **Unpair** undoes it; **Clear** in the toolbar removes all manual pairs. |
 
@@ -42,6 +44,8 @@ structural changes. A block that moved shows at its new position labelled `moved
 with a small `↓ moved below` / `↑ moved above` link left at its old spot.
 
 ## Settings
+
+`mdWordDiff.ignoreLineWrap` (default `false`): treat wrapped lines inside paragraphs as spaces.
 
 `mdWordDiff.grouping` (default `1`): `off`, `1` or `2` — how many unchanged words between two changes get absorbed so the changes show as one block. Word counts in the toolbar always count real word changes.
 

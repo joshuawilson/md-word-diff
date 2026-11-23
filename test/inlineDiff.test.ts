@@ -3,6 +3,7 @@ import { parseBlocks } from '../src/engine/parse';
 import { describeFormat, diffInline, diffRaw, type InlineSeg } from '../src/engine/inlineDiff';
 
 const toks = (md: string) => parseBlocks(md)[0].inline!;
+const toksIW = (md: string) => parseBlocks(md, { ignoreWrap: true })[0].inline!;
 const ins = (s: InlineSeg[]) => s.filter(x => x.op === 'insert').map(x => x.text).join('|');
 const del = (s: InlineSeg[]) => s.filter(x => x.op === 'delete').map(x => x.text).join('|');
 
@@ -24,8 +25,15 @@ test('non-ascii word change marks only that word', () => {
   expect(ins(s)).toBe('thé');
 });
 
-test('rewrap is no change', () => {
-  expect(diffInline(toks('a b\nc'), toks('a\nb c')).every(x => x.op === 'equal')).toBe(true);
+test('rewrap is no change when ignoring line wrap', () => {
+  expect(diffInline(toksIW('a b\nc'), toksIW('a\nb c')).every(x => x.op === 'equal')).toBe(true);
+});
+
+test('rewrap is a change by default', () => {
+  const s = diffInline(toks('a b\nc'), toks('a\nb c'));
+  const changed = s.filter(x => x.op !== 'equal');
+  expect(changed.length).toBeGreaterThan(0);
+  expect(changed.some(x => x.text.includes('\n'))).toBe(true);
 });
 
 test('equal segments are merged', () => {
@@ -61,6 +69,10 @@ test('raw diff: changed url is one token', () => {
   expect(r.filter(x => x.op === 'delete').map(x => x.text)).toEqual(['](http://a)']);
 });
 
-test('raw diff ignores rewrap', () => {
-  expect(diffRaw('a b\nc', 'a\nb c').every(x => x.op === 'equal')).toBe(true);
+test('raw diff ignores rewrap when asked', () => {
+  expect(diffRaw('a b\nc', 'a\nb c', { ignoreWrap: true }).every(x => x.op === 'equal')).toBe(true);
+});
+
+test('raw diff keeps line breaks by default', () => {
+  expect(diffRaw('a b\nc', 'a\nb c').some(x => x.op !== 'equal')).toBe(true);
 });

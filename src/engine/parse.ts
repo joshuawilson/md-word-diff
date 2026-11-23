@@ -4,12 +4,13 @@ import { gfmFromMarkdown } from 'mdast-util-gfm';
 import { frontmatter } from 'micromark-extension-frontmatter';
 import { frontmatterFromMarkdown } from 'mdast-util-frontmatter';
 import type { Nodes, PhrasingContent } from 'mdast';
-import { tokenizeInline, tokensSig } from './inline';
+import { tokenizeInline, tokensSig, type TokenizeOptions } from './inline';
 import type { Block, BlockKind, Container } from './types';
 
 interface Ctx {
   md: string;
   out: Block[];
+  opts: TokenizeOptions;
 }
 
 interface ItemInfo {
@@ -80,12 +81,12 @@ function walkBlock(ctx: Ctx, node: Nodes, cs: Container[], item: ItemInfo | null
   const q = quoteDepth(cs);
   switch (node.type) {
     case 'paragraph': {
-      const inline = tokenizeInline(node.children as PhrasingContent[]);
+      const inline = tokenizeInline(node.children as PhrasingContent[], {}, ctx.opts);
       emit(ctx, cs, item, 'paragraph', stripPrefixes(slice(ctx, node), q), tokensSig(inline), { inline });
       break;
     }
     case 'heading': {
-      const inline = tokenizeInline(node.children as PhrasingContent[]);
+      const inline = tokenizeInline(node.children as PhrasingContent[], {}, ctx.opts);
       emit(ctx, cs, item, 'heading', stripPrefixes(slice(ctx, node), q), `${node.depth}|${tokensSig(inline)}`, { inline, level: node.depth });
       break;
     }
@@ -100,7 +101,7 @@ function walkBlock(ctx: Ctx, node: Nodes, cs: Container[], item: ItemInfo | null
       break;
     }
     case 'table': {
-      const rows = node.children.map(r => r.children.map(c => tokenizeInline(c.children as PhrasingContent[])));
+      const rows = node.children.map(r => r.children.map(c => tokenizeInline(c.children as PhrasingContent[], {}, ctx.opts)));
       const content = rows.map(r => r.map(tokensSig).join('\u0003')).join('\u0004');
       emit(ctx, cs, item, 'table', stripPrefixes(slice(ctx, node), q), content, { rows });
       break;
@@ -143,13 +144,13 @@ function walkBlock(ctx: Ctx, node: Nodes, cs: Container[], item: ItemInfo | null
 }
 
 /** Parse markdown into a flat list of blocks with container context. */
-export function parseBlocks(md: string): Block[] {
+export function parseBlocks(md: string, opts: TokenizeOptions = {}): Block[] {
   const text = md.replace(/\r\n?/g, '\n');
   const tree = fromMarkdown(text, {
     extensions: [gfm(), frontmatter(['yaml'])],
     mdastExtensions: [gfmFromMarkdown(), frontmatterFromMarkdown(['yaml'])],
   });
-  const ctx: Ctx = { md: text, out: [] };
+  const ctx: Ctx = { md: text, out: [], opts };
   walkBlocks(ctx, tree.children as Nodes[], [], null);
   return ctx.out;
 }

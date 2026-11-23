@@ -126,6 +126,11 @@
             "Merge changes separated by at most 2 unchanged words"
           ],
           "markdownDescription": "Group nearby word changes so a rewritten phrase reads as one block: new text first, then the old text struck through. The toolbar **Grouping** control overrides this per panel."
+        },
+        "mdWordDiff.ignoreLineWrap": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Treat wrapped lines inside a paragraph as spaces, so re-wrapping text is not a change and paragraphs show as flowing text. Off by default: line breaks are shown and compared. Deliberate line breaks (a trailing `\\\\` or two spaces) are always kept. The toolbar **Ignore line wrap** switch overrides this per panel."
         }
       }
     }

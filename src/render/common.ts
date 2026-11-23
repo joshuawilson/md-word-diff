@@ -1,4 +1,4 @@
-import type { DiffBlock } from '../engine/diff';
+import { pairGroup, type DiffBlock } from '../engine/diff';
 import type { RawSeg } from '../engine/inlineDiff';
 import { escapeHtml } from './escape';
 
@@ -12,12 +12,8 @@ export function rawSegs(segs: RawSeg[]): string {
   return segs.map(s => wrapOp(s.op, escapeHtml(s.text))).join('');
 }
 
-/** Kinds that may be paired: text with text, code with code, table with table. */
-export function family(kind: string): string {
-  if (kind === 'paragraph' || kind === 'heading') return 'text';
-  if (kind === 'code' || kind === 'frontmatter') return 'code';
-  return kind;
-}
+/** Kinds that may be paired by hand (text and code together, tables with tables). */
+export const family = pairGroup;
 
 /** Old-side and new-side block indexes, used by manual pairing. */
 function sides(b: DiffBlock): { oi?: number; ni?: number } {

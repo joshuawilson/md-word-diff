@@ -5,7 +5,7 @@ import { blockOpen, markers, movedStub, rawSegs, wrapOp } from './common';
 import { escapeHtml, safeHref } from './escape';
 
 function formatted(text: string, f: Format): string {
-  let h = escapeHtml(text);
+  let h = escapeHtml(text).replace(/\n/g, '<br>');
   if (f.image !== undefined) {
     return `<span class="img">🖼 ${h} <span class="url">${escapeHtml(f.image)}</span></span>`;
   }

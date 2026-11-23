@@ -266,3 +266,13 @@ The chosen pair is diffed word by word at the new block's position, labelled
 are released and re-matched. Manual pairs are kept per panel (by old/new block index),
 survive Grouping/Pairing changes and live edits, and are dropped if an index no longer
 exists or the kinds are incompatible. Engine: `diffMarkdown(..., { forced: [oldIdx, newIdx][] })`.
+
+## Addendum 2026-11-23 (4): line breaks (user approved; replaces "line breaks inside a paragraph are not a change")
+
+- Line breaks inside paragraphs are **kept by default**: shown as line breaks and compared
+  (a re-wrap is a change). Hard breaks (`\` or two trailing spaces) are always kept.
+- **Ignore line wrap** switch (toolbar checkbox + setting `mdWordDiff.ignoreLineWrap`,
+  default `false`): when on, soft-wrapped lines inside a paragraph compare and display as
+  spaces (the previous behavior). Hard breaks are still kept.
+- Manual pairing may pair a code block with text (either direction); they are compared
+  as plain text, line by line. Tables still pair only with tables.

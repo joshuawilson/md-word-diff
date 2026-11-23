@@ -48,7 +48,7 @@ test('forced pair out of order becomes a move', () => {
 test('invalid and incompatible forced pairs are ignored', () => {
   const r1 = diffMarkdown(OLD, NEW, { ...T, forced: [[9, 1], [1, 9]] });
   expect(r1.blocks.some(b => b.forced)).toBe(false);
-  const r2 = diffMarkdown('text para here\n\n```\ncode\n```', '```\nother\n```\n\nmore text', { ...T, forced: [[0, 0]] });
+  const r2 = diffMarkdown('text para here\n\n```\ncode\n```', '| t |\n|---|\n| x |\n\nmore text', { ...T, forced: [[0, 0]] });
   expect(r2.blocks.some(b => b.forced)).toBe(false);
 });
 
@@ -58,7 +58,7 @@ test('rendered and raw expose pairing hooks', () => {
     expect(h).toMatch(/class="blk deleted chg"[^>]*data-oi="1"/);
     expect(h).toMatch(/class="blk inserted chg"[^>]*data-ni="1"/);
     expect(h).toContain('class="pair-btn"');
-    expect(h).toMatch(/data-family="text"/);
+    expect(h).toMatch(/data-family="flow"/);
   }
   const forced = renderRendered(diffMarkdown(OLD, NEW, { ...T, forced: [[1, 1]] }));
   expect(forced).toContain('class="unpair-btn" data-oi="1"');
