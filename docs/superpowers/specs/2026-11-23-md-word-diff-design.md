@@ -220,3 +220,18 @@ A 5,000-line document diffs and renders in under 1 second.
 - Similarity metric details beyond the threshold setting.
 - Webview styling details, icons, exact toolbar layout.
 - Test framework.
+
+## Addendum 2026-11-23: grouping and new-first order (user approved)
+
+- **Grouping.** Display-only merge of nearby word changes. Between two change
+  runs, an unchanged stretch of at most N words (spaces/punctuation don't count)
+  is absorbed: shown once in the inserted text and once in the deleted text.
+  Toolbar control `Grouping: Off · 1 word · 2 words` (re-diffs instantly, panel
+  only); setting `mdWordDiff.grouping` (`off` | `1` | `2`, default `1`).
+  Applies to paragraph/heading text, table cells, Raw view and changed code
+  lines. Unchanged stretches carrying a formatting change are never absorbed.
+  Toolbar word counts are computed before grouping (absorbed words don't count).
+- **New first.** Everywhere a change shows both versions, the new version comes
+  first, then the struck-through old one: within text, within code lines, for
+  table rows, and for whole blocks (inserted paragraph above the deleted one it
+  replaced).
