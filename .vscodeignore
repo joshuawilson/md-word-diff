@@ -1,0 +1,11 @@
+.superpowers/**
+src/**
+test/**
+docs/**
+node_modules/**
+**/*.ts
+**/*.map
+tsconfig.json
+esbuild.mjs
+vitest.config.ts
+!media/style.css
