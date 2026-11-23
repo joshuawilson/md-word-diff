@@ -55,7 +55,7 @@ export function markers(b: DiffBlock): string {
   return b.markers.map(m => `<span class="marker">${escapeHtml(m)}</span>`).join('');
 }
 
-/** Stub left where a moved block used to be; links to its new position. */
-export function movedStub(b: DiffBlock): string {
-  return `<div class="blk movedAway" data-id="${b.id}"${attrs(b)}>${pairControls(b)}<a class="move-link" data-target="${b.movedTo}" href="#">${escapeHtml(b.markers[0] ?? 'moved')}</a></div>`;
+/** Label on the stub left where a moved block used to be; links to its new position. */
+export function moveLink(b: DiffBlock): string {
+  return `<a class="move-link" data-target="${b.movedTo}" href="#">${escapeHtml(b.markers[0] ?? 'moved')}</a>`;
 }

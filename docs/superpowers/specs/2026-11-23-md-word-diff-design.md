@@ -284,3 +284,7 @@ Unpairing shows both blocks as deleted + inserted and keeps both out of automati
 (they can still be paired by hand; a manual pair wins). Engine:
 `diffMarkdown(..., { unpaired: [oldIdx, newIdx][] })`. Kept per panel like manual pairs;
 the toolbar **Clear** resets manual pairs and unpairs together.
+
+### Addendum (6): moved stubs keep their text
+
+The stub left at a moved block's old position shows the old block's full text struck through (as a deleted block would), under the "moved above/below" link. This lets the user read it and use **Pair with…** on it. Its words are not counted in the stats again.

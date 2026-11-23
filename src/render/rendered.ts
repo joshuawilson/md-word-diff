@@ -1,7 +1,7 @@
 import type { DiffBlock, DiffResult } from '../engine/diff';
 import { describeFormat, type InlineSeg } from '../engine/inlineDiff';
 import type { Container, Format } from '../engine/types';
-import { blockOpen, markers, movedStub, rawSegs, wrapOp } from './common';
+import { blockOpen, markers, moveLink, rawSegs, wrapOp } from './common';
 import { escapeHtml, safeHref } from './escape';
 
 function formatted(text: string, f: Format): string {
@@ -89,11 +89,6 @@ export function renderRendered(r: DiffResult): string {
     }
   };
   for (const b of r.blocks) {
-    if (b.status === 'movedAway') {
-      closeTo(0);
-      out.push(movedStub(b));
-      continue;
-    }
     const chain = b.block.containers;
     let common = 0;
     while (common < stack.length && common < chain.length && stack[common].sig === sigOf(chain[common])) common++;
@@ -122,7 +117,7 @@ export function renderRendered(r: DiffResult): string {
     }
     const box = checkbox(b);
     const textual = b.block.kind === 'paragraph' || b.block.kind === 'heading';
-    out.push(blockOpen(b), markers(b), textual ? '' : box, content(b, textual ? box : ''), '</div>');
+    out.push(blockOpen(b), b.status === 'movedAway' ? moveLink(b) : markers(b), textual ? '' : box, content(b, textual ? box : ''), '</div>');
   }
   closeTo(0);
   return out.join('');

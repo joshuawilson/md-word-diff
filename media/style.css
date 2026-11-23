@@ -55,8 +55,8 @@ li.collapsed-run { list-style: none; }
 /* New-first pairs: small gap between the inserted text and the struck-through old text. */
 ins + del { margin-left: 0.3em; }
 /* Moves */
-.blk.movedAway { border-left: 3px dashed var(--muted); padding: 2px 8px; font-size: 0.85em; }
-.move-link { color: var(--muted); text-decoration: none; }
+.blk.movedAway { border-left: 3px dashed var(--muted); padding: 2px 8px; }
+.move-link { display: inline-block; font-size: 0.75em; color: var(--muted); border: 1px dashed var(--muted); border-radius: 3px; padding: 0 4px; margin-right: 6px; text-decoration: none; }
 .move-link:hover { color: var(--vscode-textLink-foreground); text-decoration: underline; }
 /* Manual pairing */
 .blk { position: relative; }

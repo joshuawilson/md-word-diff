@@ -128,7 +128,7 @@ function markForced(d: DiffBlock): DiffBlock {
 }
 
 function movedStub(id: number, block: Block, fromAbove: boolean, movedTo: number): DiffBlock {
-  return { id, status: 'movedAway', block, raw: [], markers: [fromAbove ? '↓ moved below' : '↑ moved above'], movedTo };
+  return { id, status: 'movedAway', block, markers: [fromAbove ? '↓ moved below' : '↑ moved above'], movedTo, ...whole(block, 'delete') } as DiffBlock;
 }
 
 function fromMoveOps(ops: MoveOp<Block>[], opts: DiffOptions): DiffBlock[] {

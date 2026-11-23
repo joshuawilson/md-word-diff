@@ -63,3 +63,20 @@ test('stub renders as a jump link in both views', () => {
     expect(h).toContain('class="blk movedAway"');
   }
 });
+
+test('stub keeps the old text, struck through, so it can be read and paired', () => {
+  const r = diffMarkdown(`${P}\n\n${F}`, `${F}\n\n${P2}`, T);
+  const stub = r.blocks.find(b => b.status === 'movedAway')!;
+  expect(stub.inline!.length).toBeGreaterThan(0);
+  expect(stub.inline!.every(s => s.op === 'delete')).toBe(true);
+  // Stub words are not counted again as removed: only the edit inside the moved block counts.
+  expect(r.stats.wordsRemoved).toBe(2);
+  const first = P.split(' ')[0];
+  for (const h of [renderRendered(r), renderRaw(r)]) {
+    const stubHtml = h.slice(h.indexOf('class="blk movedAway"'));
+    const end = stubHtml.indexOf('</div>');
+    expect(stubHtml.slice(0, end)).toContain('<del>');
+    expect(stubHtml.slice(0, end)).toContain(first);
+    expect(stubHtml.slice(0, end)).toContain('class="pair-btn"');
+  }
+});

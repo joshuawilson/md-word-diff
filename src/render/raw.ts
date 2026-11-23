@@ -1,5 +1,5 @@
 import type { DiffBlock, DiffResult } from '../engine/diff';
-import { blockOpen, markers, movedStub, rawSegs } from './common';
+import { blockOpen, markers, moveLink, rawSegs } from './common';
 import { escapeHtml } from './escape';
 
 function prefix(b: DiffBlock): string {
@@ -13,6 +13,6 @@ function prefix(b: DiffBlock): string {
 /** Raw view: each block's markdown source with token-level marks. */
 export function renderRaw(r: DiffResult): string {
   return r.blocks
-    .map(b => b.status === 'movedAway' ? movedStub(b) : `${blockOpen(b)}${markers(b)}<pre class="raw">${escapeHtml(prefix(b))}${rawSegs(b.raw)}</pre></div>`)
+    .map(b => `${blockOpen(b)}${b.status === 'movedAway' ? moveLink(b) : markers(b)}<pre class="raw">${escapeHtml(prefix(b))}${rawSegs(b.raw)}</pre></div>`)
     .join('');
 }
