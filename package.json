@@ -5,7 +5,9 @@
   "version": "0.0.1",
   "publisher": "local",
   "license": "MIT",
-  "engines": { "vscode": "^1.90.0" },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
   "main": "./dist/extension.js",
   "scripts": {
     "build": "node esbuild.mjs",
@@ -30,5 +32,87 @@
     "mdast-util-gfm": "^3.0.0",
     "micromark-extension-frontmatter": "^2.0.0",
     "micromark-extension-gfm": "^3.0.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "local"
+  },
+  "activationEvents": [],
+  "contributes": {
+    "commands": [
+      {
+        "command": "mdWordDiff.compareWithRevision",
+        "title": "Compare with Revision\u2026",
+        "category": "Markdown Word Diff"
+      },
+      {
+        "command": "mdWordDiff.compareTwoRevisions",
+        "title": "Compare Two Revisions\u2026",
+        "category": "Markdown Word Diff"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "mdWordDiff.compareWithRevision",
+          "when": "resourceLangId == markdown",
+          "group": "3_compare"
+        },
+        {
+          "command": "mdWordDiff.compareTwoRevisions",
+          "when": "resourceLangId == markdown",
+          "group": "3_compare"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "mdWordDiff.compareWithRevision",
+          "when": "resourceLangId == markdown",
+          "group": "3_compare"
+        },
+        {
+          "command": "mdWordDiff.compareTwoRevisions",
+          "when": "resourceLangId == markdown",
+          "group": "3_compare"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "mdWordDiff.compareWithRevision",
+          "when": "resourceLangId == markdown",
+          "group": "3_compare"
+        },
+        {
+          "command": "mdWordDiff.compareTwoRevisions",
+          "when": "resourceLangId == markdown",
+          "group": "3_compare"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "mdWordDiff.compareWithRevision",
+          "when": "editorLangId == markdown || resourceLangId == markdown"
+        },
+        {
+          "command": "mdWordDiff.compareTwoRevisions",
+          "when": "editorLangId == markdown || resourceLangId == markdown"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Markdown Word Diff",
+      "properties": {
+        "mdWordDiff.pairingThreshold": {
+          "type": "number",
+          "default": 0.35,
+          "minimum": 0,
+          "maximum": 1,
+          "markdownDescription": "How similar an old and a new block must be (share of words in common, 0\u20131) to be shown as an **edit** with word-level marks rather than a whole deletion plus insertion. Lower = heavy rewrites still shown word by word; too low (< 0.2) pairs unrelated paragraphs. The toolbar **Pairing** control overrides this per panel (Loose = 0.2, Normal = this value, Strict = 0.6)."
+        }
+      }
+    }
   }
 }

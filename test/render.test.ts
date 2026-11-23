@@ -81,3 +81,7 @@ test('perf: diff + both renders of 5000-line doc under 1s', () => {
   renderRaw(r);
   expect(performance.now() - t).toBeLessThan(1000);
 });
+
+test('task checkbox sits inside the item paragraph', () => {
+  expect(renderRendered(R('- [x] ship it', '- [x] ship it'))).toContain('<p><input type="checkbox" disabled checked> ship it</p>');
+});

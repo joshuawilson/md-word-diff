@@ -41,13 +41,13 @@ function codeHtml(b: DiffBlock): string {
   return `<pre class="code">${lines.join('')}</pre>`;
 }
 
-function content(b: DiffBlock): string {
+function content(b: DiffBlock, lead: string): string {
   const blk = b.block;
   switch (blk.kind) {
     case 'heading':
-      return `<h${blk.level}>${inlineHtml(b.inline ?? [])}</h${blk.level}>`;
+      return `<h${blk.level}>${lead}${inlineHtml(b.inline ?? [])}</h${blk.level}>`;
     case 'paragraph':
-      return `<p>${inlineHtml(b.inline ?? [])}</p>`;
+      return `<p>${lead}${inlineHtml(b.inline ?? [])}</p>`;
     case 'code':
     case 'frontmatter':
       return codeHtml(b);
@@ -115,7 +115,9 @@ export function renderRendered(r: DiffResult): string {
         stack.push({ sig: sigOf(c), close: c.ordered ? '</ol>' : '</ul>', isList: true, liOpen: true });
       }
     }
-    out.push(blockOpen(b), markers(b), checkbox(b), content(b), '</div>');
+    const box = checkbox(b);
+    const textual = b.block.kind === 'paragraph' || b.block.kind === 'heading';
+    out.push(blockOpen(b), markers(b), textual ? '' : box, content(b, textual ? box : ''), '</div>');
   }
   closeTo(0);
   return out.join('');
