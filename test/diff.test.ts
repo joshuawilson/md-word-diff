@@ -46,7 +46,9 @@ test('table added column', () => {
 test('list item edit and reorder', () => {
   const r = diffMarkdown('- alpha one\n- beta two\n- gamma three', '- beta two\n- alpha one changed\n- gamma three', T);
   expect(r.blocks.filter(b => b.status === 'unchanged').length).toBe(2);
-  expect(r.blocks.some(b => b.status === 'deleted') && r.blocks.some(b => b.status === 'inserted')).toBe(true);
+  // The edited item moved: shown as a move (stub + modified block), not delete + insert.
+  expect(r.blocks.some(b => b.status === 'movedAway')).toBe(true);
+  expect(r.blocks.find(b => b.block.source.includes('changed'))!.markers).toContain('moved from above');
 });
 
 test('code block line edit', () => {
@@ -122,4 +124,20 @@ test('perf: 3000-row table all edited under 1s', () => {
   const t = performance.now();
   diffMarkdown('| k | v |\n|---|---|\n' + rows('a'), '| k | v |\n|---|---|\n' + rows('b'), T);
   expect(performance.now() - t).toBeLessThan(1000);
+});
+
+test('a short block moving across an edited paragraph does not block pairing', () => {
+  const old = 'Intro text here.\n\nalpha beta gamma delta epsilon zeta eta theta\n\n![Fig](f.png)';
+  const neu = 'Intro text here.\n\n![Fig](f.png)\n\nalpha beta gamma delta epsilon zeta iota kappa';
+  const r = diffMarkdown(old, neu, T);
+  const para = r.blocks.find(b => b.block.source.startsWith('alpha'))!;
+  expect(para.status).toBe('modified');
+  // The image itself is shown as moved.
+  expect(r.blocks.filter(b => b.block.source.startsWith('![Fig]')).map(b => b.status).sort()).toEqual(['modified', 'movedAway']);
+});
+
+test('long identical blocks still anchor', () => {
+  const long = 'This unchanged paragraph has plenty of words so it anchors the alignment firmly.';
+  const r = diffMarkdown(`${long}\n\none two three four`, `${long}\n\none two three five`, T);
+  expect(r.blocks.map(b => b.status)).toEqual(['unchanged', 'modified']);
 });

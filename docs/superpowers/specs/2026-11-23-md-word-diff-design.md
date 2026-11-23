@@ -235,3 +235,22 @@ A 5,000-line document diffs and renders in under 1 second.
   first, then the struck-through old one: within text, within code lines, for
   table rows, and for whole blocks (inserted paragraph above the deleted one it
   replaced).
+
+## Addendum 2026-11-23 (2): moves (user approved, supersedes the "move detection" non-goal)
+
+- Identical runs anchor the alignment only when they carry at least 8 words; shorter
+  ones (an image line, a short heading) are matched with their neighbours, maximizing
+  total shared words, so a small moved block can't block an edit from pairing.
+- **Move pass.** After the in-order alignment, leftover deleted and inserted blocks
+  anywhere in the document are matched by shared words (compatible kinds,
+  similarity ≥ threshold, exact copies included), highest overlap first. A matched
+  pair shows at its **new** position as a modified block with the label
+  `moved from above` / `moved from below` and the usual word marks; the old position
+  keeps a small stub (`↓ moved below` / `↑ moved above`) that jumps to it. The stub
+  is not counted as a separate change.
+- Matching runs globally: identical runs with >= 8 words anchor; every other block is
+  matched by shared words, most first; the heaviest order-preserving set stays in place
+  and the rest are moves. Falls back to in-order alignment + leftover move pass when
+  there are too many candidates.
+- Default `mdWordDiff.pairingThreshold` stays **0.35** (Normal); 0.30 was tried on the
+  user's chapter and added false pairs. Loose 0.2, Strict 0.6.

@@ -11,12 +11,21 @@ export interface AlignOptions<T> {
 }
 
 const DP_LIMIT = 250_000;
+/**
+ * A run of identical blocks anchors the alignment only if it carries at least this many words.
+ * Shorter runs (an image line, a one-word heading) are aligned together with their neighbours,
+ * so a small block that moved cannot stop an edited paragraph from being paired across it.
+ */
+const STRONG_ANCHOR_WORDS = 8;
+/** Score for a match that carries no words (e.g. a thematic break). */
+const MIN_WEIGHT = 0.5;
 const GREEDY_WINDOW = 200;
 
 /**
- * Order-preserving alignment: exact-key anchors via LCS, then in each gap pair
- * compatible items whose similarity >= threshold, maximizing total similarity.
- * Pairs never cross. Within a gap, deletions are emitted before the items they precede.
+ * Order-preserving alignment: identical runs carrying enough words anchor via LCS; between
+ * anchors, items are matched to maximize the total number of shared words (identical items
+ * included), pairing compatible items whose similarity >= threshold. Pairs never cross.
+ * Within a run of changes, insertions come before deletions (new first).
  */
 export function align<T>(a: T[], b: T[], opts: AlignOptions<T>): AlignOp<T>[] {
   const ka = a.map(opts.key);
@@ -39,8 +48,14 @@ export function align<T>(a: T[], b: T[], opts: AlignOptions<T>): AlignOp<T>[] {
       gapB.push(...b.slice(j, j + ch.count));
       j += ch.count;
     } else {
-      flush();
-      for (let k = 0; k < ch.count; k++) out.push({ op: 'equal', a: a[i + k], b: b[j + k] });
+      const words = a.slice(i, i + ch.count).reduce((n, x) => n + wordBag(opts.words(x)).length, 0);
+      if (words >= STRONG_ANCHOR_WORDS) {
+        flush();
+        for (let k = 0; k < ch.count; k++) out.push({ op: 'equal', a: a[i + k], b: b[j + k] });
+      } else {
+        gapA.push(...a.slice(i, i + ch.count));
+        gapB.push(...b.slice(j, j + ch.count));
+      }
       i += ch.count;
       j += ch.count;
     }
@@ -79,13 +94,24 @@ function alignGap<T>(a: T[], b: T[], opts: AlignOptions<T>, out: AlignOp<T>[]): 
   }
   const ba = a.map(x => wordBag(opts.words(x)));
   const bb = b.map(y => wordBag(opts.words(y)));
+  const ka = a.map(opts.key);
+  const kb = b.map(opts.key);
+  // Weight of matching a[x] with b[y]: number of shared words, or -1 if they may not match.
   const sim = (x: number, y: number): number => {
+    if (ka[x] === kb[y]) return Math.max(MIN_WEIGHT, ba[x].length);
     if (!opts.compatible(a[x], b[y])) return -1;
     const s = bagSimilarity(ba[x], bb[y]);
-    return s >= opts.threshold ? s : -1;
+    if (s < opts.threshold) return -1;
+    return Math.max(MIN_WEIGHT, (s * (ba[x].length + bb[y].length)) / 2);
   };
+  const isEqual = (x: T, y: T) => opts.key(x) === opts.key(y);
+  const start = out.length;
   if (a.length * b.length > DP_LIMIT) greedy(a, b, sim, out);
   else dp(a, b, sim, out);
+  for (let k = start; k < out.length; k++) {
+    const op = out[k];
+    if (op.op === 'pair' && isEqual(op.a, op.b)) out[k] = { op: 'equal', a: op.a, b: op.b };
+  }
 }
 
 function dp<T>(a: T[], b: T[], sim: (x: number, y: number) => number, out: AlignOp<T>[]): void {

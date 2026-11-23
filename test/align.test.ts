@@ -49,3 +49,15 @@ test('large gap uses fallback and stays fast', () => {
   expect(performance.now() - t).toBeLessThan(500);
   expect(r.filter(o => o.op === 'pair').length).toBeGreaterThan(1000);
 });
+
+test('weak (short) exact match does not override a heavier edited pair', () => {
+  const a = [S('p q r s t u v w'), S('img')];
+  const b = [S('img'), S('p q r s t u x y')];
+  const r = align(a, b, opts);
+  expect(r.find(o => o.op === 'pair')).toBeTruthy();
+  expect(r.filter(o => o.op === 'equal').length).toBe(0);
+});
+
+test('short exact match is still equal when nothing competes', () => {
+  expect(ops(align([S('img'), S('a b')], [S('img'), S('a c')], opts))).toEqual(['equal', 'pair']);
+});
