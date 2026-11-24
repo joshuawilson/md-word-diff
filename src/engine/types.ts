@@ -23,6 +23,8 @@ export interface Block {
   kind: BlockKind;
   /** Position in the parsed document (0-based). */
   index: number;
+  /** Line the block starts on in its file (1-based). */
+  line: number;
   /** Outermost first. */
   containers: Container[];
   /** First block of a list item. */

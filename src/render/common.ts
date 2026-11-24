@@ -45,10 +45,25 @@ export function pairControls(b: DiffBlock): string {
   return `<span class="blk-actions">${split}<button class="pair-btn" data-oi="${oi}" title="Compare this old block with a new block you pick">Pair with…</button></span>`;
 }
 
+/** Line numbers in the old and new file; a new-side number links to that line in the editor. */
+export function gutter(b: DiffBlock): string {
+  let o: number | undefined;
+  let n: number | undefined;
+  if (b.status === 'deleted' || b.status === 'movedAway') o = b.block.line;
+  else if (b.status === 'inserted') n = b.block.line;
+  else {
+    o = b.old?.line;
+    n = b.block.line;
+  }
+  const go = `<span class="go">${o ?? ''}</span>`;
+  const gn = n === undefined ? '<span class="gn"></span>' : `<a class="gn" data-line="${n}" href="#">${n}</a>`;
+  return `<span class="gut">${go}${gn}</span>`;
+}
+
 export function blockOpen(b: DiffBlock): string {
   const counted = b.status !== 'unchanged' && b.status !== 'movedAway';
   const cls = `blk ${b.status}${counted ? ' chg' : ''}${b.forced ? ' forced' : ''}`;
-  return `<div class="${cls}" data-id="${b.id}"${attrs(b)}>${pairControls(b)}`;
+  return `<div class="${cls}" data-id="${b.id}"${attrs(b)}>${gutter(b)}${pairControls(b)}`;
 }
 
 export function markers(b: DiffBlock): string {

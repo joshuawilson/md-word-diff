@@ -22,6 +22,8 @@ interface RenderMsg {
   unpairs: number;
   /** Saved pairs that could not be found in the current text. */
   lost?: number;
+  /** New-side line numbers can be clicked to jump to the editor. */
+  canReveal?: boolean;
 }
 
 declare function acquireVsCodeApi(): VsApi;
@@ -45,7 +47,23 @@ function applyView(): void {
   views.raw.classList.toggle('view-hidden', state.view !== 'raw');
   setActive($('view'), 'data-v', state.view);
   current = -1;
+  placeGutters();
 }
+
+/**
+ * Line-number gutters sit inside each block (so they move with it) but are lined up in one
+ * column left of the document, whatever the block's list or quote indentation.
+ */
+function placeGutters(): void {
+  const root = views[state.view];
+  const docLeft = root.getBoundingClientRect().left;
+  root.querySelectorAll<HTMLElement>('.gut').forEach(g => {
+    const blk = g.parentElement!;
+    if (!blk.offsetParent) return;
+    g.style.left = `${docLeft - blk.getBoundingClientRect().left - blk.clientLeft - g.offsetWidth - 10}px`;
+  });
+}
+window.addEventListener('resize', placeGutters);
 
 /**
  * Collapse runs of >= 2 consecutive unchanged siblings into a clickable row. Works at every
@@ -56,6 +74,7 @@ function applyHide(root: HTMLElement): void {
   root.querySelectorAll('.collapsed-run').forEach(el => el.remove());
   root.querySelectorAll('.run-hidden').forEach(el => el.classList.remove('run-hidden'));
   if (state.hideUnchanged) collapseIn(root);
+  placeGutters();
 }
 
 const blockCount = (el: Element) => (el.matches('.blk') ? 1 : el.querySelectorAll('.blk').length);
@@ -74,6 +93,7 @@ function collapseIn(parent: Element): void {
       row.addEventListener('click', () => {
         members.forEach(el => el.classList.remove('run-hidden'));
         row.remove();
+        placeGutters();
       });
       parent.insertBefore(row, members[0]);
     }
@@ -124,6 +144,7 @@ window.addEventListener('message', (e: MessageEvent<RenderMsg>) => {
   setActive($('pairing'), 'data-p', msg.pairing);
   setActive($('grouping'), 'data-g', msg.grouping);
   $<HTMLInputElement>('ignore-wrap').checked = msg.ignoreWrap;
+  document.body.classList.toggle('can-reveal', !!msg.canReveal);
   $('manual').classList.toggle('view-hidden', msg.manualPairs === 0 && msg.unpairs === 0 && !msg.lost);
   const parts: string[] = [];
   if (msg.manualPairs) parts.push(`${msg.manualPairs} manual pair${msg.manualPairs === 1 ? '' : 's'}`);
@@ -221,12 +242,19 @@ document.addEventListener(
       if (target || t.closest('#pick-cancel')) cancelPick();
       return;
     }
+    const gn = t.closest<HTMLElement>('a.gn');
+    if (gn) {
+      e.preventDefault();
+      vscode.postMessage({ type: 'reveal', line: Number(gn.dataset.line) });
+      return;
+    }
     const link = t.closest<HTMLElement>('.move-link');
     if (link) {
       e.preventDefault();
       const el = views[state.view].querySelector<HTMLElement>(`.blk[data-id="${link.dataset.target}"]`);
       if (el) {
         el.classList.remove('run-hidden');
+        placeGutters();
         el.scrollIntoView({ block: 'center' });
         el.classList.add('flash');
         setTimeout(() => el.classList.remove('flash'), 600);

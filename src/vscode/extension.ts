@@ -45,6 +45,7 @@ async function compareWithRevision(ctx: vscode.ExtensionContext, arg: unknown): 
     getOld: () => showFile(t.root, rev, t.relPath),
     getNew: () => (openDoc && !openDoc.isClosed ? openDoc.getText() : readFile(t.uri.fsPath, 'utf8')),
     liveDoc: openDoc,
+    revealUri: t.uri,
     storeKey: `pairs:${t.root}:${t.relPath}:${rev}`,
   });
 }

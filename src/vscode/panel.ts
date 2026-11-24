@@ -18,6 +18,8 @@ export interface PanelSource {
   getNew(): string | Promise<string>;
   /** When set, re-diff as this document changes. */
   liveDoc?: vscode.TextDocument;
+  /** File to open when a new-side line number is clicked (working-copy comparisons). */
+  revealUri?: vscode.Uri;
   /** Workspace-state key under which manual pairs and unpairs are saved for this comparison. */
   storeKey?: string;
 }
@@ -80,6 +82,7 @@ function shellHtml(webview: vscode.Webview, extUri: vscode.Uri): string {
 export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: PanelSource): void {
   const panel = vscode.window.createWebviewPanel('mdWordDiff', title, vscode.ViewColumn.Beside, {
     enableScripts: true,
+    enableFindWidget: true,
     retainContextWhenHidden: true,
     localResourceRoots: [vscode.Uri.joinPath(ctx.extensionUri, 'media'), vscode.Uri.joinPath(ctx.extensionUri, 'dist')],
   });
@@ -141,6 +144,7 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
         manualPairs: result.blocks.filter(b => b.forced).length,
         unpairs: ru.pairs.length,
         lost: rf.lost + ru.lost,
+        canReveal: !!src.revealUri,
       });
     } catch (err) {
       void vscode.window.showErrorMessage(err instanceof Error ? err.message : String(err));
@@ -149,8 +153,16 @@ export function openDiffPanel(ctx: vscode.ExtensionContext, title: string, src: 
   };
 
   disposables.push(
-    panel.webview.onDidReceiveMessage((msg: { type: string; value?: string | boolean; oi?: number; ni?: number }) => {
-      if (msg.type === 'ready') {
+    panel.webview.onDidReceiveMessage((msg: { type: string; value?: string | boolean; oi?: number; ni?: number; line?: number }) => {
+      if (msg.type === 'reveal' && src.revealUri && Number.isInteger(msg.line) && msg.line! >= 1) {
+        const pos = new vscode.Position(msg.line! - 1, 0);
+        const uri = src.revealUri.toString();
+        const shown = vscode.window.visibleTextEditors.find(ed => ed.document.uri.toString() === uri);
+        void vscode.window.showTextDocument(src.revealUri, {
+          viewColumn: shown?.viewColumn ?? vscode.ViewColumn.One,
+          selection: new vscode.Range(pos, pos),
+        });
+      } else if (msg.type === 'ready') {
         ready = true;
         void render();
       } else if (msg.type === 'pairing' && (msg.value === 'loose' || msg.value === 'normal' || msg.value === 'strict')) {

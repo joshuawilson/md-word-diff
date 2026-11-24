@@ -11,6 +11,8 @@ interface Ctx {
   md: string;
   out: Block[];
   opts: TokenizeOptions;
+  /** Start line of the node being emitted. */
+  line: number;
 }
 
 interface ItemInfo {
@@ -57,6 +59,7 @@ function emit(ctx: Ctx, cs: Container[], item: ItemInfo | null, kind: BlockKind,
   ctx.out.push({
     kind,
     index: ctx.out.length,
+    line: ctx.line,
     containers: cs.slice(),
     itemStart: item !== null,
     checked: item?.checked ?? null,
@@ -79,6 +82,7 @@ function walkBlocks(ctx: Ctx, nodes: Nodes[], cs: Container[], firstItem: ItemIn
 function walkBlock(ctx: Ctx, node: Nodes, cs: Container[], item: ItemInfo | null): boolean {
   const before = ctx.out.length;
   const q = quoteDepth(cs);
+  ctx.line = node.position?.start.line ?? ctx.line;
   switch (node.type) {
     case 'paragraph': {
       const inline = tokenizeInline(node.children as PhrasingContent[], {}, ctx.opts);
@@ -150,7 +154,7 @@ export function parseBlocks(md: string, opts: TokenizeOptions = {}): Block[] {
     extensions: [gfm(), frontmatter(['yaml'])],
     mdastExtensions: [gfmFromMarkdown(), frontmatterFromMarkdown(['yaml'])],
   });
-  const ctx: Ctx = { md: text, out: [], opts };
+  const ctx: Ctx = { md: text, out: [], opts, line: 1 };
   walkBlocks(ctx, tree.children as Nodes[], [], null);
   return ctx.out;
 }
