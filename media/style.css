@@ -12,7 +12,7 @@ body {
   line-height: 1.6;
   color: var(--vscode-foreground);
   background: var(--vscode-editor-background);
-  padding: 0 24px 48px 96px;
+  padding: 0 110px 48px 96px;
   margin: 0;
 }
 #doc { max-width: 900px; }
@@ -60,9 +60,11 @@ ins + del { margin-left: 0.3em; }
 .move-link:hover { color: var(--vscode-textLink-foreground); text-decoration: underline; }
 /* Manual pairing */
 .blk { position: relative; }
-.blk-actions { position: absolute; right: 0; top: 0; z-index: 2; display: none; gap: 4px; }
+/* Pair buttons sit just right of the block, in space the body reserves, so they never cover text.
+   padding-left (not a margin) keeps the pointer inside the block's hover area on the way over. */
+.blk-actions { position: absolute; left: 100%; top: 0; z-index: 2; display: none; flex-direction: column; align-items: flex-start; gap: 3px; padding-left: 8px; }
 .blk:hover > .blk-actions, .blk.forced > .blk-actions { display: inline-flex; }
-.pair-btn, .unpair-btn, .split-btn { font: 11px var(--vscode-font-family); padding: 1px 6px; cursor: pointer; border-radius: 3px; border: 1px solid var(--vscode-editorWidget-border, #555); background: var(--vscode-editorWidget-background, #252526); color: var(--vscode-foreground); }
+.pair-btn, .unpair-btn, .split-btn { white-space: nowrap; font: 11px var(--vscode-font-family); padding: 1px 6px; cursor: pointer; border-radius: 3px; border: 1px solid var(--vscode-editorWidget-border, #555); background: var(--vscode-editorWidget-background, #252526); color: var(--vscode-foreground); }
 .blk.forced { border-left-style: double; border-left-width: 4px; }
 body.picking .blk:not(.pick-target):not(.pick-source) { opacity: 0.45; }
 body.picking .pick-target { cursor: pointer; outline: 1px dashed var(--vscode-focusBorder, #007fd4); }
